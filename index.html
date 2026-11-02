@@ -1,0 +1,4157 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Полимино</title>
+<link rel="icon" href="data:,">
+<style>
+/* Layout: one phone-width column on squared notebook paper; the board grows into whatever height is left. */
+:root {
+  --paper: #fbfcfa;
+  --grid: #dce8f1;
+  --ink: #23356b;
+  --ink-soft: #5d6b92;
+  --margin-red: #d8434b;
+  --cell: #ffffff;
+  --cell-line: #c9d8e5;
+  --macro-line: #8aa3c2;
+  --btn-bg: #ffffff;
+  --shade: rgba(35, 53, 107, 0.16);
+  --overlay: rgba(27, 36, 66, 0.42);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --gutter: 16px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* author display rules must never beat the hidden attribute */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  background-color: var(--paper);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: var(--ink);
+  font: 16px/1.4 var(--font);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* the red margin line of a school notebook */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 6px;
+  width: 2px;
+  background: var(--margin-red);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+input,
+textarea {
+  font: 16px/1.35 var(--font);
+  color: var(--ink);
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+  touch-action: manipulation;
+}
+
+#app {
+  height: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.screen {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top, 0px) var(--gutter) env(safe-area-inset-bottom, 0px);
+}
+
+.screen[hidden],
+.overlay[hidden] {
+  display: none !important;
+}
+
+.screen-center {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+/* ---------- bars and buttons ---------- */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  flex: none;
+}
+
+.bar-title {
+  flex: 1;
+  font-weight: 650;
+  font-size: 17px;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.icon-btn,
+.icon-btn-space {
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.btn {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--btn-bg);
+  color: var(--ink);
+  font: 600 16px/1 var(--font);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.btn-primary {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.btn-small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.btn-wide {
+  width: 100%;
+  max-width: 280px;
+}
+
+.btn-hint {
+  border-color: var(--margin-red);
+  color: var(--margin-red);
+}
+
+.btn-icon {
+  width: 56px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn.inactive {
+  opacity: 0.4;
+}
+
+.coach-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.btn.armed {
+  background: var(--margin-red);
+  border-color: var(--margin-red);
+  color: #ffffff;
+}
+
+.link-btn {
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font: 15px var(--font);
+  text-decoration: underline;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+button:focus-visible,
+.tile:focus-visible {
+  outline: 3px solid var(--margin-red);
+  outline-offset: 2px;
+}
+
+.fine {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 8px 0;
+}
+
+/* ---------- start, intro, thanks ---------- */
+
+.start-box,
+.intro-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.start-title {
+  font-size: 34px;
+  letter-spacing: 0.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.intro-title {
+  font-size: 26px;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.start-lead {
+  font-size: 18px;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.start-art {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+/* ---------- level list ---------- */
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 24px;
+}
+
+.chapter {
+  margin: 10px 0 18px;
+}
+
+.chapter-title {
+  font-size: 15px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  margin: 0 0 10px;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.tile {
+  position: relative;
+  max-width: 100%;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--cell);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* square tiles without aspect-ratio (Safari 14): the zero-width item's padding equals the tile width */
+.tile::before {
+  content: "";
+  display: block;
+  width: 0;
+  padding-top: 100%;
+}
+
+.tile .icon-svg {
+  max-width: 80%;
+  max-height: 70%;
+}
+
+.tile.locked {
+  border-style: dashed;
+  border-color: var(--ink-soft);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tile.solved::after,
+.tile.hinted::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.tile.hinted::after {
+  background: var(--margin-red);
+}
+
+.tile-num {
+  position: absolute;
+  left: 6px;
+  bottom: 3px;
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.strip {
+  margin-top: 12px;
+}
+
+.strip-label {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.strip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.strip-cell {
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid var(--cell-line);
+  border-radius: 8px;
+  background: var(--cell);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.strip-cell.empty {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* ---------- album ---------- */
+
+.album-page {
+  margin: 10px 0 20px;
+}
+
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 10px;
+}
+
+.album-item {
+  min-height: 84px;
+  border: 1.5px solid var(--cell-line);
+  border-radius: 10px;
+  background: var(--cell);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--ink);
+}
+
+.album-item.missing {
+  color: var(--cell-line);
+  background: transparent;
+  border-style: dashed;
+}
+
+.album-soon {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* ---------- level screen ---------- */
+
+.goal-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 28px;
+  font-size: 15px;
+  color: var(--ink-soft);
+  flex: none;
+}
+
+.goal-icon {
+  display: inline-flex;
+  color: var(--ink);
+}
+
+.board-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+}
+
+.board {
+  position: relative;
+  flex: none;
+}
+
+.board-svg {
+  display: block;
+}
+
+.board-svg .bc rect {
+  fill: var(--cell);
+  stroke: var(--cell-line);
+  stroke-width: 1;
+}
+
+.board-svg .bm rect {
+  fill: none;
+  stroke: var(--macro-line);
+  stroke-width: 2;
+}
+
+.board-svg .bo {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.pieces {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.piece {
+  position: absolute;
+}
+
+.piece .psvg,
+.slot .psvg,
+.proxy .psvg {
+  display: block;
+  overflow: visible;
+}
+
+.piece.selected .psvg,
+.slot.selected .psvg {
+  filter: drop-shadow(0 0 2px var(--ink)) drop-shadow(0 0 1px var(--ink));
+}
+
+.pin {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+
+.pin svg {
+  display: block;
+}
+
+.ghost {
+  position: absolute;
+  pointer-events: none;
+}
+
+.win-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.coach {
+  display: none;
+  flex: none;
+  min-height: 2.8em;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.has-coach .coach {
+  display: flex;
+}
+
+.tray {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.slot {
+  width: var(--slot);
+  height: var(--slot);
+  border: 1.5px solid var(--cell-line);
+  border-radius: 10px;
+  background: var(--cell);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+.slot.empty {
+  background: transparent;
+  border-style: dashed;
+  cursor: default;
+}
+
+.actions {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 10px;
+}
+
+.flash .psvg path,
+.slot.flash {
+  outline: 3px solid var(--margin-red);
+}
+
+.pulse {
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+.pulse-static {
+  box-shadow: 0 0 0 3px var(--margin-red);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(216, 67, 75, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(216, 67, 75, 0);
+  }
+}
+
+/* ---------- overlays ---------- */
+
+#drag-layer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.proxy {
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.proxy.dragging {
+  filter: drop-shadow(0 6px 8px var(--shade));
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--overlay);
+}
+
+.overlay-light {
+  background: rgba(27, 36, 66, 0.25);
+}
+
+.card,
+.menu {
+  width: 100%;
+  max-width: 340px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  box-shadow: 0 10px 30px var(--shade);
+}
+
+.card-title {
+  margin: 0;
+  font-size: 24px;
+}
+
+.card-figure {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-buttons {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.card-buttons .btn {
+  flex: 1;
+}
+
+#win .strip {
+  margin-top: 0;
+}
+
+#win .strip-cell {
+  width: 30px;
+  height: 30px;
+}
+
+.intro-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  min-height: 56px;
+}
+
+.intro-slot {
+  min-width: 48px;
+  height: 48px;
+  padding: 4px;
+  border: 1.5px solid var(--cell-line);
+  border-radius: 10px;
+  background: var(--cell);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- results ---------- */
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 6px;
+}
+
+.q {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.q textarea,
+.q input,
+.share-text {
+  width: 100%;
+  border: 1.5px solid var(--cell-line);
+  border-radius: 10px;
+  background: var(--cell);
+  padding: 8px 10px;
+  font-weight: 400;
+}
+
+.q2-art {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.row2 {
+  display: flex;
+  gap: 10px;
+}
+
+.row2 .q {
+  flex: 1;
+  min-width: 0;
+}
+
+.results-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  z-index: 60;
+  font-size: 15px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <section id="screen-start" class="screen screen-center" hidden>
+    <div class="start-box">
+      <h1 class="start-title">Полимино</h1>
+      <div class="start-art" id="start-art"></div>
+      <p class="start-lead">Собирай большие фигуры из деталей.</p>
+      <button id="start-play" class="btn btn-primary btn-wide">Играть</button>
+      <p class="fine">Игра отправляет разработчику анонимную статистику ходов.</p>
+    </div>
+  </section>
+
+  <section id="screen-levels" class="screen" hidden>
+    <header class="bar">
+      <div class="bar-title">Полимино</div>
+      <button id="levels-album" class="btn btn-small">Альбом</button>
+    </header>
+    <div class="scroll" id="levels-list"></div>
+  </section>
+
+  <section id="screen-level" class="screen screen-level" hidden>
+    <header class="bar">
+      <button id="lv-back" class="icon-btn" aria-label="К уровням"></button>
+      <div class="bar-title" id="lv-title"></div>
+      <button id="lv-menu" class="icon-btn" aria-label="Меню"></button>
+    </header>
+    <div class="goal-row"><span class="goal-icon" id="lv-goal-icon"></span><span>такую же, только больше</span></div>
+    <div class="board-area" id="lv-board-area">
+      <div class="board" id="lv-board"></div>
+    </div>
+    <div class="coach" id="lv-coach" aria-live="polite"></div>
+    <div class="tray" id="lv-tray"></div>
+    <div class="actions">
+      <button id="lv-hint" class="btn btn-hint">Подсказка</button>
+      <button id="lv-flip" class="btn btn-icon" aria-label="Отразить выбранную деталь"></button>
+      <button id="lv-reset" class="btn">Сброс</button>
+    </div>
+  </section>
+
+  <section id="screen-ch2" class="screen screen-center" hidden>
+    <div class="intro-box">
+      <h2 class="intro-title">Глава 2</h2>
+      <div class="strip" id="ch2-strip"></div>
+      <div class="intro-tray" id="ch2-tray"></div>
+      <button id="ch2-play" class="btn btn-primary btn-wide">Играть</button>
+    </div>
+  </section>
+
+  <section id="screen-album" class="screen" hidden>
+    <header class="bar">
+      <button id="album-back" class="icon-btn" aria-label="Назад"></button>
+      <div class="bar-title">Альбом</div>
+      <span class="icon-btn-space"></span>
+    </header>
+    <div class="scroll" id="album-list"></div>
+  </section>
+
+  <section id="screen-bonus" class="screen screen-center" hidden>
+    <div class="intro-box">
+      <h2 class="intro-title">Глава 2 пройдена</h2>
+      <p class="start-lead">Есть ещё 3 сложных уровня.</p>
+      <button id="bonus-play" class="btn btn-primary btn-wide">Играть</button>
+      <button id="bonus-finish" class="btn btn-wide">Закончить</button>
+    </div>
+  </section>
+
+  <section id="screen-results" class="screen" hidden>
+    <header class="bar">
+      <button id="results-back" class="icon-btn" aria-label="Назад"></button>
+      <div class="bar-title">Итоги</div>
+      <span class="icon-btn-space"></span>
+    </header>
+    <div class="scroll" id="results-scroll">
+      <form id="results-form" class="results" autocomplete="off" novalidate>
+        <div id="results-questions">
+          <label class="q" for="q1">Про что эта игра, своими словами?
+            <textarea id="q1" rows="3" maxlength="1000"></textarea>
+          </label>
+          <div class="q" id="q2-block">
+            <label for="q2">Что это за детали? Где ты их видел?</label>
+            <div class="q2-art" id="q2-art"></div>
+            <textarea id="q2" rows="2" maxlength="1000"></textarea>
+          </div>
+          <label class="q" for="q3">Был момент, когда ты не знал, что делать или как?
+            <textarea id="q3" rows="3" maxlength="1000"></textarea>
+          </label>
+        </div>
+        <div class="row2">
+          <label class="q q-small" for="r-name">Имя (если хочешь)
+            <input id="r-name" type="text" maxlength="40">
+          </label>
+          <label class="q q-small" for="r-code">Код
+            <input id="r-code" type="text" maxlength="12">
+          </label>
+        </div>
+        <p class="fine">Ответы отправятся, когда нажмёшь одну из кнопок.</p>
+        <div class="results-buttons">
+          <button type="button" id="r-more" class="btn btn-primary">Хочу ещё уровней</button>
+          <button type="button" id="r-enough" class="btn">Пока хватит</button>
+        </div>
+        <button type="button" id="r-share" class="link-btn">Отправить в мессенджер</button>
+        <textarea id="r-share-text" class="share-text" rows="6" readonly hidden></textarea>
+        <button type="button" id="r-copy" class="btn btn-small" hidden>Скопировать</button>
+        <p class="fine" id="r-build"></p>
+      </form>
+    </div>
+  </section>
+
+  <section id="screen-thanks" class="screen screen-center" hidden>
+    <div class="intro-box">
+      <h2 class="intro-title">Спасибо!</h2>
+      <p class="start-lead">Можно закрыть страницу или играть дальше.</p>
+      <button id="thanks-levels" class="btn btn-primary btn-wide">К уровням</button>
+    </div>
+  </section>
+
+  <div id="win" class="overlay" hidden>
+    <div class="card">
+      <h2 class="card-title">Собрано!</h2>
+      <div class="card-figure" id="win-figure"></div>
+      <div class="strip" id="win-strip"></div>
+      <p class="fine" id="win-hints"></p>
+      <div class="card-buttons">
+        <button id="win-next" class="btn btn-primary">Дальше</button>
+        <button id="win-album" class="btn">Альбом</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="menu" class="overlay overlay-light" hidden>
+    <div class="menu">
+      <button id="menu-album" class="btn btn-wide">Альбом</button>
+      <button id="menu-results" class="btn btn-wide">Итоги</button>
+      <button id="menu-close" class="btn btn-wide">Закрыть</button>
+      <p class="fine" id="menu-build"></p>
+    </div>
+  </div>
+
+  <div id="rotate" class="overlay" hidden>
+    <div class="card"><p class="start-lead">Поверни телефон вертикально</p></div>
+  </div>
+
+  <div id="othertab" class="overlay" hidden>
+    <div class="card">
+      <p class="start-lead">Игра открыта в другой вкладке.</p>
+      <button id="othertab-here" class="btn btn-primary">Играть здесь</button>
+    </div>
+  </div>
+
+  <div id="drag-layer"></div>
+</div>
+<script>
+(function () {
+  'use strict';
+  globalThis.Poly = globalThis.Poly || {};
+  globalThis.Poly.config = {
+    build: '20261102-1621',
+    // Google Form: https://docs.google.com/forms/d/e/<id>/formResponse and the field name entry.<n>
+    formAction: 'https://docs.google.com/forms/d/e/1FAIpQLScaIM4iuaLsphJPUQEk_0aqucPExpDKuovukG41tNIlUIyiRg/formResponse',
+    formField: 'entry.1932081470',
+  };
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+
+  const CATALOG = {
+    I2: [[0, 0], [1, 0]],
+    I3: [[0, 0], [1, 0], [2, 0]],
+    L3: [[0, 0], [0, 1], [1, 1]],
+    I4: [[0, 0], [1, 0], [2, 0], [3, 0]],
+    O4: [[0, 0], [1, 0], [0, 1], [1, 1]],
+    T4: [[0, 0], [1, 0], [2, 0], [1, 1]],
+    S4: [[1, 0], [2, 0], [0, 1], [1, 1]],
+    L4: [[0, 0], [0, 1], [0, 2], [1, 2]],
+    F5: [[1, 0], [2, 0], [0, 1], [1, 1], [1, 2]],
+    I5: [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]],
+    L5: [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3]],
+    N5: [[0, 0], [0, 1], [1, 1], [1, 2], [1, 3]],
+    P5: [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2]],
+    T5: [[0, 0], [1, 0], [2, 0], [1, 1], [1, 2]],
+    U5: [[0, 0], [2, 0], [0, 1], [1, 1], [2, 1]],
+    V5: [[0, 0], [0, 1], [0, 2], [1, 2], [2, 2]],
+    W5: [[0, 0], [0, 1], [1, 1], [1, 2], [2, 2]],
+    X5: [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]],
+    Y5: [[1, 0], [0, 1], [1, 1], [1, 2], [1, 3]],
+    Z5: [[0, 0], [1, 0], [1, 1], [1, 2], [2, 2]],
+  };
+
+  // ---------- geometry ----------
+
+  const shapeCache = new Map();
+
+  function byReadingOrder(a, b) {
+    return a[1] - b[1] || a[0] - b[0];
+  }
+
+  function keyOf(sorted) {
+    return sorted.map((c) => c[0] + ',' + c[1]).join(';');
+  }
+
+  // cells: per base index; sorted: reading order; first: first cell in reading order
+  function shape(type, ori) {
+    const id = type + '|' + ori.r + '|' + ori.f;
+    let s = shapeCache.get(id);
+    if (s) return s;
+    const base = CATALOG[type];
+    if (!base) throw new Error('unknown type ' + type);
+    const pts = base.map((c) => {
+      let x = ori.f ? -c[0] : c[0];
+      let y = c[1];
+      for (let k = 0; k < ori.r; k++) {
+        const t = x;
+        x = -y;
+        y = t;
+      }
+      return [x, y];
+    });
+    let mx = Infinity;
+    let my = Infinity;
+    for (const p of pts) {
+      if (p[0] < mx) mx = p[0];
+      if (p[1] < my) my = p[1];
+    }
+    const cells = pts.map((p) => [p[0] - mx, p[1] - my]);
+    const sorted = cells.slice().sort(byReadingOrder);
+    let w = 0;
+    let h = 0;
+    for (const c of cells) {
+      if (c[0] + 1 > w) w = c[0] + 1;
+      if (c[1] + 1 > h) h = c[1] + 1;
+    }
+    s = { type, ori: { r: ori.r, f: ori.f }, cells, sorted, key: keyOf(sorted), first: sorted[0], w, h };
+    shapeCache.set(id, s);
+    return s;
+  }
+
+  function rotateOri(ori) {
+    return { r: (ori.r + 1) % 4, f: ori.f };
+  }
+
+  function flipOri(ori) {
+    return { r: (4 - ori.r) % 4, f: 1 - ori.f };
+  }
+
+  const orisCache = new Map();
+
+  // unique orientations; refl: undefined = all (flips allowed), 0 or 1 = rotations of that reflection only
+  function uniqueOris(type, refl) {
+    const id = type + '|' + (refl === undefined ? '*' : refl);
+    let list = orisCache.get(id);
+    if (list) return list;
+    const fs = refl === undefined ? [0, 1] : [refl];
+    const seen = new Set();
+    list = [];
+    for (const f of fs) {
+      for (let r = 0; r < 4; r++) {
+        const s = shape(type, { r, f });
+        if (seen.has(s.key)) continue;
+        seen.add(s.key);
+        list.push({ r, f });
+      }
+    }
+    orisCache.set(id, list);
+    return list;
+  }
+
+  function rotationKeys(type, f) {
+    const keys = new Set();
+    for (let r = 0; r < 4; r++) keys.add(shape(type, { r, f }).key);
+    return keys;
+  }
+
+  const chiralCache = new Map();
+
+  function isChiral(type) {
+    let v = chiralCache.get(type);
+    if (v !== undefined) return v;
+    v = !rotationKeys(type, 0).has(shape(type, { r: 0, f: 1 }).key);
+    chiralCache.set(type, v);
+    return v;
+  }
+
+  // 0 – a rotation of the catalogue shape, 1 – its mirror image (only for chiral types)
+  function reflectionOf(type, ori) {
+    if (!isChiral(type)) return 0;
+    return rotationKeys(type, 0).has(shape(type, ori).key) ? 0 : 1;
+  }
+
+  // ---------- levels ----------
+
+  function findTypeAndOri(sortedKey, size) {
+    for (const type of Object.keys(CATALOG)) {
+      if (CATALOG[type].length !== size) continue;
+      for (const ori of uniqueOris(type)) {
+        if (shape(type, ori).key === sortedKey) return { type, ori };
+      }
+    }
+    return null;
+  }
+
+  function parseLevel(def) {
+    const rows = def.solution;
+    const H = rows.length;
+    let W = 0;
+    for (const row of rows) if (row.length > W) W = row.length;
+    const target = new Uint8Array(W * H);
+    const byLetter = new Map();
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const ch = rows[y][x] || ' ';
+        if (ch === ' ') continue;
+        target[y * W + x] = 1;
+        if (!byLetter.has(ch)) byLetter.set(ch, []);
+        byLetter.get(ch).push([x, y]);
+      }
+    }
+    const letters = Array.from(byLetter.keys()).sort();
+    const pieces = letters.map((letter, i) => {
+      const cells = byLetter.get(letter);
+      let mx = Infinity;
+      let my = Infinity;
+      for (const c of cells) {
+        if (c[0] < mx) mx = c[0];
+        if (c[1] < my) my = c[1];
+      }
+      const norm = cells.map((c) => [c[0] - mx, c[1] - my]).sort(byReadingOrder);
+      const found = findTypeAndOri(keyOf(norm), cells.length);
+      if (!found) throw new Error('level ' + def.id + ': letter ' + letter + ' is not a known piece');
+      const tray = (def.tray && def.tray[letter]) || { r: 0, f: 0 };
+      return {
+        i,
+        letter,
+        type: found.type,
+        solOri: found.ori,
+        solAt: { x: mx, y: my },
+        trayOri: { r: tray.r, f: tray.f },
+      };
+    });
+    let area = 0;
+    for (let k = 0; k < target.length; k++) area += target[k];
+    return { def, id: def.id, W, H, target, area, pieces, flip: !!(def.rules && def.rules.flip) };
+  }
+
+  // ---------- board ----------
+
+  function newState(level) {
+    const owner = new Int16Array(level.W * level.H).fill(-1);
+    const pieces = level.pieces.map((p) => ({
+      i: p.i,
+      letter: p.letter,
+      type: p.type,
+      ori: { r: p.trayOri.r, f: p.trayOri.f },
+      at: null,
+      pinned: false,
+      placedSeq: 0,
+    }));
+    return { level, owner, pieces, seq: 0 };
+  }
+
+  function cellsAt(piece, ori, x, y) {
+    return shape(piece.type, ori).cells.map((c) => [x + c[0], y + c[1]]);
+  }
+
+  function canPlace(state, piece, ori, x, y) {
+    const { W, H, target } = state.level;
+    for (const c of shape(piece.type, ori).cells) {
+      const bx = x + c[0];
+      const by = y + c[1];
+      if (bx < 0 || by < 0 || bx >= W || by >= H) return false;
+      const idx = by * W + bx;
+      if (!target[idx]) return false;
+      const o = state.owner[idx];
+      if (o !== -1 && o !== piece.i) return false;
+    }
+    return true;
+  }
+
+  function clearOwner(state, piece) {
+    if (!piece.at) return;
+    const W = state.level.W;
+    for (const c of cellsAt(piece, piece.ori, piece.at.x, piece.at.y)) {
+      const idx = c[1] * W + c[0];
+      if (state.owner[idx] === piece.i) state.owner[idx] = -1;
+    }
+  }
+
+  function place(state, piece, ori, x, y) {
+    clearOwner(state, piece);
+    piece.ori = { r: ori.r, f: ori.f };
+    piece.at = { x, y };
+    const W = state.level.W;
+    for (const c of cellsAt(piece, piece.ori, x, y)) state.owner[c[1] * W + c[0]] = piece.i;
+    state.seq += 1;
+    piece.placedSeq = state.seq;
+  }
+
+  function unplace(state, piece) {
+    clearOwner(state, piece);
+    piece.at = null;
+    piece.pinned = false;
+  }
+
+  function nearestPlacement(state, piece, ori, fx, fy) {
+    let best = null;
+    let bestD = Infinity;
+    for (let y = Math.floor(fy - 1); y <= Math.ceil(fy + 1); y++) {
+      for (let x = Math.floor(fx - 1); x <= Math.ceil(fx + 1); x++) {
+        const d = Math.hypot(x - fx, y - fy);
+        if (d > 1 + 1e-9) continue;
+        if (d > bestD + 1e-9) continue;
+        if (Math.abs(d - bestD) <= 1e-9 && best && (y > best.y || (y === best.y && x >= best.x))) continue;
+        if (!canPlace(state, piece, ori, x, y)) continue;
+        best = { x, y };
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  function rotateOnBoard(state, piece, pivotIndex) {
+    if (!piece.at) return null;
+    const ori = rotateOri(piece.ori);
+    const old = shape(piece.type, piece.ori).cells[pivotIndex];
+    const neu = shape(piece.type, ori).cells[pivotIndex];
+    const x = piece.at.x + old[0] - neu[0];
+    const y = piece.at.y + old[1] - neu[1];
+    return canPlace(state, piece, ori, x, y) ? { ori, x, y } : null;
+  }
+
+  function flipOnBoard(state, piece) {
+    if (!piece.at) return null;
+    const ori = flipOri(piece.ori);
+    return canPlace(state, piece, ori, piece.at.x, piece.at.y) ? { ori, x: piece.at.x, y: piece.at.y } : null;
+  }
+
+  function filledCount(state) {
+    let n = 0;
+    for (let k = 0; k < state.owner.length; k++) if (state.owner[k] !== -1) n++;
+    return n;
+  }
+
+  function isSolved(state) {
+    const { target } = state.level;
+    for (let k = 0; k < target.length; k++) if (target[k] && state.owner[k] === -1) return false;
+    return true;
+  }
+
+  // returns indices of removed pieces
+  function resetBoard(state) {
+    const loose = state.pieces.filter((p) => p.at && !p.pinned);
+    const list = loose.length ? loose : state.pieces.filter((p) => p.at);
+    for (const p of list) unplace(state, p);
+    return list.map((p) => p.i);
+  }
+
+  // ---------- solver ----------
+
+  function groupKey(type, ori, allowFlip) {
+    return allowFlip ? type : type + '/' + reflectionOf(type, ori);
+  }
+
+  // pieces: [{type, ori}] – the ori matters only without flips (it fixes the reflection)
+  function makePool(pieces, allowFlip) {
+    const map = new Map();
+    for (const p of pieces) {
+      const key = groupKey(p.type, p.ori, allowFlip);
+      let g = map.get(key);
+      if (!g) {
+        const oris = allowFlip ? uniqueOris(p.type) : uniqueOris(p.type, reflectionOf(p.type, p.ori));
+        g = { key, type: p.type, count: 0, oris };
+        map.set(key, g);
+      }
+      g.count++;
+    }
+    return Array.from(map.values());
+  }
+
+  function solve(opts) {
+    const W = opts.W;
+    const H = opts.H;
+    const limit = opts.limit === undefined ? Infinity : opts.limit;
+    const keep = opts.keep === undefined ? 1 : opts.keep;
+    const grid = new Uint8Array(W * H);
+    let freeCount = 0;
+    for (let k = 0; k < grid.length; k++) {
+      grid[k] = opts.free[k] ? 0 : 1;
+      if (opts.free[k]) freeCount++;
+    }
+    const groups = opts.pool.map((g) => ({
+      key: g.key,
+      type: g.type,
+      left: g.count,
+      forms: g.oris.map((o) => {
+        const s = shape(g.type, o);
+        return { ori: o, anchor: s.first, rel: s.sorted.map((c) => [c[0] - s.first[0], c[1] - s.first[1]]) };
+      }),
+    }));
+    let area = 0;
+    for (const g of groups) area += g.left * CATALOG[g.type].length;
+    const result = { count: 0, solutions: [], nodes: 0 };
+    if (area !== freeCount) return result;
+    const stack = [];
+
+    function rec(start) {
+      let idx = start;
+      while (idx < grid.length && grid[idx]) idx++;
+      if (idx >= grid.length) {
+        result.count++;
+        if (result.solutions.length < keep) result.solutions.push(stack.map((s) => Object.assign({}, s)));
+        return result.count >= limit;
+      }
+      const x = idx % W;
+      const y = (idx - x) / W;
+      for (const g of groups) {
+        if (!g.left) continue;
+        for (const fm of g.forms) {
+          let ok = true;
+          for (const d of fm.rel) {
+            const cx = x + d[0];
+            const cy = y + d[1];
+            if (cx < 0 || cy < 0 || cx >= W || cy >= H || grid[cy * W + cx]) {
+              ok = false;
+              break;
+            }
+          }
+          if (!ok) continue;
+          result.nodes++;
+          for (const d of fm.rel) grid[(y + d[1]) * W + x + d[0]] = 1;
+          g.left--;
+          stack.push({ key: g.key, type: g.type, ori: fm.ori, x: x - fm.anchor[0], y: y - fm.anchor[1] });
+          const stop = rec(idx + 1);
+          stack.pop();
+          g.left++;
+          for (const d of fm.rel) grid[(y + d[1]) * W + x + d[0]] = 0;
+          if (stop) return true;
+        }
+      }
+      return false;
+    }
+
+    rec(0);
+    return result;
+  }
+
+  // all solutions of a parsed level; flip overrides the level rule (used by the generator)
+  function solveLevel(level, opts) {
+    const o = opts || {};
+    const allowFlip = o.flip === undefined ? level.flip : o.flip;
+    const pieces = level.pieces.map((p) => ({ type: p.type, ori: p.trayOri }));
+    return solve({
+      W: level.W,
+      H: level.H,
+      free: level.target,
+      pool: makePool(pieces, allowFlip),
+      limit: o.limit,
+      keep: o.keep,
+    });
+  }
+
+  function placementCells(pl) {
+    return shape(pl.type, pl.ori).cells.map((c) => [pl.x + c[0], pl.y + c[1]]);
+  }
+
+  function* combinations(list, k, from) {
+    const start = from || 0;
+    if (k === 0) {
+      yield [];
+      return;
+    }
+    for (let i = start; i <= list.length - k; i++) {
+      for (const rest of combinations(list, k - 1, i + 1)) yield [list[i]].concat(rest);
+    }
+  }
+
+  // one hint: {remove: [i], place: {i, ori, x, y}} or null when the board is solved
+  function hint(state, opts) {
+    const o = opts || {};
+    if (isSolved(state)) return null;
+    const level = state.level;
+    const W = level.W;
+    const allowFlip = level.flip;
+    const tray = state.pieces.filter((p) => !p.at);
+    const loose = state.pieces.filter((p) => p.at && !p.pinned).sort((a, b) => b.placedSeq - a.placedSeq);
+
+    function attempt(removed) {
+      const free = new Uint8Array(W * level.H);
+      const gone = new Set(removed.map((p) => p.i));
+      for (let k = 0; k < free.length; k++) {
+        if (level.target[k] && (state.owner[k] === -1 || gone.has(state.owner[k]))) free[k] = 1;
+      }
+      const pool = makePool(tray.concat(removed), allowFlip);
+      return { free, pool, res: solve({ W, H: level.H, free, pool, limit: 1, keep: 1 }) };
+    }
+
+    let removed = [];
+    let run = attempt(removed);
+    if (!run.res.count) {
+      let found = false;
+      for (let k = 1; k <= loose.length && !found; k++) {
+        for (const subset of combinations(loose, k)) {
+          const r = attempt(subset);
+          if (r.res.count) {
+            removed = subset;
+            run = r;
+            found = true;
+            break;
+          }
+        }
+      }
+      if (!found) return null;
+    }
+
+    const solution = run.res.solutions[0];
+    const free = run.free;
+    const counts = new Int32Array(free.length);
+    for (const g of run.pool) {
+      for (const ori of g.oris) {
+        const s = shape(g.type, ori);
+        for (let y = 0; y + s.h <= level.H; y++) {
+          for (let x = 0; x + s.w <= W; x++) {
+            let ok = true;
+            for (const c of s.cells) {
+              if (!free[(y + c[1]) * W + x + c[0]]) {
+                ok = false;
+                break;
+              }
+            }
+            if (!ok) continue;
+            for (const c of s.cells) counts[(y + c[1]) * W + x + c[0]]++;
+          }
+        }
+      }
+    }
+
+    const avoid = new Set();
+    if (o.avoidReflected) {
+      for (const pl of solution) {
+        if (isChiral(pl.type) && reflectionOf(pl.type, pl.ori) === 1) {
+          for (const c of placementCells(pl)) avoid.add(c[1] * W + c[0]);
+        }
+      }
+    }
+    let hasOther = false;
+    for (let k = 0; k < free.length; k++) if (free[k] && !avoid.has(k)) hasOther = true;
+
+    let cell = -1;
+    for (let k = 0; k < free.length; k++) {
+      if (!free[k]) continue;
+      if (hasOther && avoid.has(k)) continue;
+      if (cell === -1 || counts[k] < counts[cell]) cell = k;
+    }
+    const cx = cell % W;
+    const cy = (cell - cx) / W;
+    const pl = solution.find((s) => placementCells(s).some((c) => c[0] === cx && c[1] === cy));
+    const candidates = tray.concat(removed).filter((p) => groupKey(p.type, p.ori, allowFlip) === pl.key);
+    candidates.sort((a, b) => a.i - b.i);
+    return {
+      remove: removed.map((p) => p.i),
+      place: { i: candidates[0].i, ori: { r: pl.ori.r, f: pl.ori.f }, x: pl.x, y: pl.y },
+    };
+  }
+
+  // ---------- misc ----------
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function hashString(str) {
+    let h = 0x811c9dc5;
+    for (let k = 0; k < str.length; k++) {
+      h ^= str.charCodeAt(k);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(36);
+  }
+
+  const api = {
+    CATALOG,
+    shape,
+    rotateOri,
+    flipOri,
+    uniqueOris,
+    isChiral,
+    reflectionOf,
+    parseLevel,
+    newState,
+    cellsAt,
+    canPlace,
+    place,
+    unplace,
+    nearestPlacement,
+    rotateOnBoard,
+    flipOnBoard,
+    filledCount,
+    isSolved,
+    resetBoard,
+    makePool,
+    solve,
+    solveLevel,
+    placementCells,
+    hint,
+    mulberry32,
+    hashString,
+  };
+
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else {
+    globalThis.Poly = globalThis.Poly || {};
+    globalThis.Poly.core = api;
+  }
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+
+  const CAP = 20000; // idle gaps count at most this much active time
+  const STUCK_MS = 60000;
+  const STUCK_FAILS = 5;
+  const MICRO = 10; // drag distance below one cell (tenths of a cell)
+  const ROT_FLIP_MS = 3000;
+  const HEAD = 500; // first events kept in full
+  const TAIL = 1000; // rolling window of the latest events
+  const MAX_RECORD_CHARS = 45000;
+  const MAX_SHARE_BYTES = 2000;
+
+  // ---------- clock ----------
+
+  function newClock(now) {
+    return { active: 0, lastInputAt: now, hidden: false, paused: false };
+  }
+
+  function running(clock) {
+    return !clock.hidden && !clock.paused;
+  }
+
+  function activeAt(clock, now) {
+    if (!running(clock)) return clock.active;
+    return clock.active + Math.min(Math.max(0, now - clock.lastInputAt), CAP);
+  }
+
+  function setFlag(clock, now, name, value) {
+    if (clock[name] === value) return;
+    const wasRunning = running(clock);
+    if (wasRunning) clock.active = activeAt(clock, now);
+    clock[name] = value;
+    if (!wasRunning && running(clock)) clock.lastInputAt = now;
+    else if (wasRunning) clock.lastInputAt = now;
+  }
+
+  function input(clock, now) {
+    if (running(clock)) clock.active = activeAt(clock, now);
+    clock.lastInputAt = now;
+  }
+
+  // a clock restored after a reload: the closed period adds nothing
+  function restoreClock(saved, now) {
+    const c = Object.assign(newClock(now), saved || {});
+    c.hidden = true;
+    c.lastInputAt = now;
+    return c;
+  }
+
+  // ---------- metrics fold ----------
+
+  function newAcc(levelIndex) {
+    return {
+      level: levelIndex,
+      active: 0,
+      firstPlaceA: null,
+      coachRotA: null,
+      rotAfterCoachA: null,
+      failsAfterCoachRot: 0,
+      coachFlipA: null,
+      flipAfterCoachA: null,
+      failsAfterCoachFlip: 0,
+      hintShownA: null,
+      stuck: null,
+      stuckA: null,
+      drags: 0,
+      places: 0,
+      fails: 0,
+      trays: 0,
+      cancels: 0,
+      micro: 0,
+      rots: 0,
+      flips: 0,
+      shakes: 0,
+      pinx: 0,
+      resets: 0,
+      exits: 0,
+      rotBeforeFlip: 0,
+      lastPlaceA: 0,
+      longestGap: 0,
+      filled: 0,
+      hints: [],
+      solved: false,
+      lastAction: null,
+    };
+  }
+
+  function checkStuck(acc, a) {
+    if (acc.stuck) return;
+    let reason = null;
+    if (acc.level === 1 && acc.firstPlaceA === null && a >= STUCK_MS) reason = 'noPlace';
+    else if (acc.coachRotA !== null && acc.rotAfterCoachA === null && (a - acc.coachRotA >= STUCK_MS || acc.failsAfterCoachRot >= STUCK_FAILS)) reason = 'rot';
+    else if (acc.coachFlipA !== null && acc.flipAfterCoachA === null && (a - acc.coachFlipA >= STUCK_MS || acc.failsAfterCoachFlip >= STUCK_FAILS)) reason = 'flip';
+    if (reason) {
+      acc.stuck = reason;
+      acc.stuckA = a;
+    }
+  }
+
+  // also called on clock polls, so that idling can make a player stuck
+  function tick(acc, a) {
+    if (a > acc.active) acc.active = a;
+    if (!acc.solved && a - acc.lastPlaceA > acc.longestGap) acc.longestGap = a - acc.lastPlaceA;
+    checkStuck(acc, a);
+  }
+
+  const ACTIONS = { pick: 1, place: 1, fail: 1, tray: 1, rot: 1, flip: 1 };
+
+  // event: [t, a, code, piece, num, filled]
+  function step(acc, ev) {
+    const t = ev[0];
+    const a = ev[1];
+    const code = ev[2];
+    const piece = ev[3];
+    const num = ev[4];
+    const filled = ev[5];
+    tick(acc, a);
+    if (typeof filled === 'number' && code !== 'hint') acc.filled = filled;
+    switch (code) {
+      case 'pick':
+        acc.drags++;
+        break;
+      case 'place':
+        acc.places++;
+        if (acc.firstPlaceA === null) acc.firstPlaceA = a;
+        acc.lastPlaceA = a;
+        if (num < MICRO) acc.micro++;
+        break;
+      case 'fail':
+        acc.fails++;
+        if (num < MICRO) acc.micro++;
+        if (acc.coachRotA !== null && acc.rotAfterCoachA === null) acc.failsAfterCoachRot++;
+        if (acc.coachFlipA !== null && acc.flipAfterCoachA === null) acc.failsAfterCoachFlip++;
+        break;
+      case 'tray':
+        acc.trays++;
+        if (num < MICRO) acc.micro++;
+        break;
+      case 'cancel':
+        acc.cancels++;
+        break;
+      case 'rot':
+        acc.rots++;
+        if (acc.coachRotA !== null && acc.rotAfterCoachA === null) acc.rotAfterCoachA = a;
+        break;
+      case 'flip':
+        acc.flips++;
+        if (acc.coachFlipA !== null && acc.flipAfterCoachA === null) acc.flipAfterCoachA = a;
+        if (acc.lastAction && acc.lastAction.code === 'rot' && acc.lastAction.piece === piece && t - acc.lastAction.t <= ROT_FLIP_MS) acc.rotBeforeFlip++;
+        break;
+      case 'rotx':
+      case 'flipx':
+        acc.shakes++;
+        break;
+      case 'pinx':
+        acc.pinx++;
+        break;
+      case 'coachRot':
+        if (acc.coachRotA === null) acc.coachRotA = a;
+        break;
+      case 'coachFlip':
+        if (acc.coachFlipA === null) acc.coachFlipA = a;
+        break;
+      case 'hintShow':
+        if (acc.hintShownA === null) acc.hintShownA = a;
+        break;
+      case 'hint':
+        // a hint is not the player's own placement: it does not reset the gap since the last `place`
+        acc.hints.push({ a, filled: typeof filled === 'number' ? filled : null, removed: num || 0, sincePlace: a - acc.lastPlaceA });
+        break;
+      case 'reset':
+        acc.resets++;
+        break;
+      case 'win':
+        acc.solved = true;
+        break;
+      case 'exit':
+        acc.exits++;
+        break;
+      case 'stuck':
+        if (!acc.stuck) {
+          acc.stuck = num;
+          acc.stuckA = a;
+        }
+        break;
+      default:
+        break;
+    }
+    if (ACTIONS[code]) acc.lastAction = { code, piece, t };
+    checkStuck(acc, a);
+  }
+
+  function metricsOf(acc) {
+    const lat = (from, to) => (from === null || to === null ? null : to - from);
+    return {
+      active: acc.active,
+      firstPlace: acc.firstPlaceA,
+      rotLatency: lat(acc.coachRotA, acc.rotAfterCoachA),
+      failsBeforeRot: acc.failsAfterCoachRot,
+      flipLatency: lat(acc.coachFlipA, acc.flipAfterCoachA),
+      failsBeforeFlip: acc.failsAfterCoachFlip,
+      hintShown: acc.hintShownA,
+      stuck: acc.stuck,
+      stuckAt: acc.stuckA,
+      drags: acc.drags,
+      places: acc.places,
+      fails: acc.fails,
+      trays: acc.trays,
+      cancels: acc.cancels,
+      micro: acc.micro,
+      rots: acc.rots,
+      flips: acc.flips,
+      shakes: acc.shakes,
+      pinx: acc.pinx,
+      resets: acc.resets,
+      exits: acc.exits,
+      rotBeforeFlip: acc.rotBeforeFlip,
+      longestGap: acc.longestGap,
+      filled: acc.filled,
+      hints: acc.hints,
+      solved: acc.solved,
+    };
+  }
+
+  // ---------- attempts ----------
+
+  function newAttempt(opts) {
+    return {
+      id: opts.id,
+      level: opts.level,
+      levelIndex: opts.levelIndex,
+      n: opts.n,
+      startedAt: opts.now,
+      events: [],
+      tail: [],
+      dropped: 0,
+      acc: newAcc(opts.levelIndex),
+      clock: newClock(opts.now),
+      done: false,
+    };
+  }
+
+  function log(attempt, now, code, piece, num, filled) {
+    const a = Math.round(activeAt(attempt.clock, now));
+    const ev = [now - attempt.startedAt, a, code, piece || '', num === undefined || num === null ? '' : num];
+    if (filled !== undefined) ev.push(filled);
+    if (attempt.events.length < HEAD) attempt.events.push(ev);
+    else {
+      attempt.tail.push(ev);
+      if (attempt.tail.length > TAIL) {
+        attempt.tail.shift();
+        attempt.dropped++;
+      }
+    }
+    step(attempt.acc, ev);
+    return ev;
+  }
+
+  // the poll between events: may raise `stuck` from idling; returns true when it did
+  function poll(attempt, now, filled) {
+    const a = Math.round(activeAt(attempt.clock, now));
+    const before = attempt.acc.stuck;
+    tick(attempt.acc, a);
+    if (!before && attempt.acc.stuck) {
+      const reason = attempt.acc.stuck;
+      attempt.acc.stuck = null;
+      log(attempt, now, 'stuck', '', reason, filled);
+      return true;
+    }
+    return false;
+  }
+
+  function journal(attempt) {
+    if (!attempt.dropped) return attempt.events.concat(attempt.tail || []);
+    return attempt.events.concat([['gap', attempt.dropped]], attempt.tail);
+  }
+
+  // ---------- records ----------
+
+  function record(meta, kind, id, data, seq) {
+    return { v: 1, build: meta.build, d: meta.deviceId, t: meta.tester, s: meta.sessionId, seq, kind, id, data };
+  }
+
+  function attemptRecord(meta, attempt, seq) {
+    return record(meta, 'attempt', attempt.id, {
+      level: attempt.level,
+      n: attempt.n,
+      startedAt: attempt.startedAt,
+      partial: !attempt.done,
+      dropped: attempt.dropped,
+      metrics: metricsOf(attempt.acc),
+      events: journal(attempt),
+    }, seq);
+  }
+
+  function cutString(s, n) {
+    const cps = Array.from(s);
+    return cps.length > n ? cps.slice(0, n).join('') + '…' : s;
+  }
+
+  // copy of a value with every string cut to n code points
+  function cutStrings(v, n) {
+    if (typeof v === 'string') return cutString(v, n);
+    if (Array.isArray(v)) return v.map((x) => cutStrings(x, n));
+    if (v && typeof v === 'object') {
+      const out = {};
+      for (const k of Object.keys(v)) out[k] = cutStrings(v[k], n);
+      return out;
+    }
+    return v;
+  }
+
+  function withData(rec, patch) {
+    return Object.assign({}, rec, { data: Object.assign({}, rec.data, patch) });
+  }
+
+  // JSON of the record that always fits the limit: first the journal is cut in the middle (head and tail kept),
+  // then long strings are shortened, then the hints list, and as a last resort only the identity is sent
+  function serialize(rec, maxChars) {
+    const limit = maxChars || MAX_RECORD_CHARS;
+    let json = JSON.stringify(rec);
+    if (json.length <= limit) return json;
+    let cur = rec;
+    if (rec.data && Array.isArray(rec.data.events)) {
+      const events = rec.data.events;
+      let lo = 0;
+      let hi = Math.floor(events.length / 2);
+      let best = null;
+      while (lo <= hi) {
+        const k = Math.floor((lo + hi) / 2);
+        const cut = events.slice(0, k).concat([['gap', events.length - 2 * k]], events.slice(events.length - k));
+        const candidate = withData(rec, { events: cut });
+        if (JSON.stringify(candidate).length <= limit) {
+          best = candidate;
+          lo = k + 1;
+        } else hi = k - 1;
+      }
+      cur = best || withData(rec, { events: [['gap', events.length]] });
+      json = JSON.stringify(cur);
+      if (json.length <= limit) return json;
+    }
+    for (const n of [2000, 500, 100]) {
+      const shorter = Object.assign({}, cur, { data: cutStrings(cur.data, n) });
+      json = JSON.stringify(shorter);
+      if (json.length <= limit) return json;
+      cur = shorter;
+    }
+    if (cur.data && cur.data.metrics && Array.isArray(cur.data.metrics.hints)) {
+      const m = Object.assign({}, cur.data.metrics, { hints: cur.data.metrics.hints.slice(0, 20) });
+      cur = withData(cur, { metrics: m });
+      json = JSON.stringify(cur);
+      if (json.length <= limit) return json;
+    }
+    return JSON.stringify(Object.assign({}, rec, { data: { tooLong: true } }));
+  }
+
+  function encodedSize(field, json) {
+    const p = new URLSearchParams();
+    p.set(field, json);
+    return p.toString().length;
+  }
+
+  function nextSeq(last, now) {
+    return Math.max(now, (last || 0) + 1);
+  }
+
+  // ---------- text for the messenger ----------
+
+  function sec(ms) {
+    return ms === null || ms === undefined ? '-' : String(Math.round(ms / 1000));
+  }
+
+  function utf8Length(s) {
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(s).length;
+    return unescape(encodeURIComponent(s)).length;
+  }
+
+  // header and answers always fit; attempt lines fill the rest of the 2 KB (UTF-8 bytes),
+  // the earliest attempts are kept and the rest is replaced by a count
+  function shareText(meta, attempts, final) {
+    const head = [
+      'v=' + meta.build,
+      't=' + meta.tester,
+      'd=' + meta.deviceId,
+      's=' + meta.sessionId,
+      'dev=' + (meta.device || '?'),
+      'vp=' + (meta.viewport || '?'),
+      'pt=' + (meta.playthrough || 1),
+    ].join(' ');
+    const tail = [];
+    if (final) {
+      tail.push('more=' + (final.wantMore === true ? 'yes' : final.wantMore === false ? 'no' : '-'));
+      const answers = final.answers || {};
+      for (const k of Object.keys(answers)) if (answers[k]) tail.push(k + ': ' + cutString(String(answers[k]).replace(/\s+/g, ' '), 150));
+    }
+    const top = [head, 'level\tn\tsolved\tactive\tfirst\trotLat\tfails\tmicro\thints\tresets\tstuck'];
+    const rows = attempts.map((at) => {
+      const m = metricsOf(at.acc);
+      return [at.level, at.n, m.solved ? 1 : 0, sec(m.active), sec(m.firstPlace), sec(m.rotLatency), m.fails, m.micro, m.hints.length, m.resets, m.stuck || '-'].join('\t');
+    });
+    let budget = MAX_SHARE_BYTES - utf8Length(top.concat(tail).join('\n')) - 20;
+    const kept = [];
+    for (const row of rows) {
+      const size = utf8Length(row) + 1;
+      if (size > budget) break;
+      kept.push(row);
+      budget -= size;
+    }
+    const middle = kept.length < rows.length ? kept.concat(['… +' + (rows.length - kept.length)]) : kept;
+    return top.concat(middle, tail).join('\n');
+  }
+
+  const api = {
+    CAP,
+    STUCK_MS,
+    MAX_RECORD_CHARS,
+    newClock,
+    activeAt,
+    input,
+    setFlag,
+    restoreClock,
+    running,
+    newAcc,
+    step,
+    tick,
+    metricsOf,
+    newAttempt,
+    log,
+    poll,
+    journal,
+    record,
+    attemptRecord,
+    serialize,
+    utf8Length,
+    encodedSize,
+    nextSeq,
+    shareText,
+  };
+
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else {
+    globalThis.Poly = globalThis.Poly || {};
+    globalThis.Poly.stats = api;
+  }
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+  // Generated by tools/gen-levels.js – do not edit by hand.
+  const api = {
+    version: '1s0zz0q',
+    levels: [
+    {"id":"ch1-1","chapter":1,"index":1,"goal":"I4","goalOri":{"r":0,"f":0},"scale":2,"rules":{"flip":false},"solution":["AAABBBCD","EEEFFFCD"],"tray":{"A":{"r":1,"f":0},"B":{"r":1,"f":0},"C":{"r":0,"f":0},"D":{"r":0,"f":0},"E":{"r":1,"f":0},"F":{"r":1,"f":0}},"coach":"rot","hash":"1hbkx2s","meta":{"solutions":15,"solutionsFlip":15,"solutionsNoFlip":15,"nodes":72}},
+    {"id":"ch1-2","chapter":1,"index":2,"goal":"O4","goalOri":{"r":0,"f":0},"scale":2,"rules":{"flip":false},"solution":["AAAB","CCBB","CDDE","FFDE"],"tray":{"A":{"r":3,"f":0},"B":{"r":0,"f":0},"C":{"r":0,"f":0},"D":{"r":0,"f":0},"E":{"r":2,"f":0},"F":{"r":3,"f":0}},"hash":"1jwmss4","meta":{"solutions":232,"solutionsFlip":232,"solutionsNoFlip":232,"nodes":1415}},
+    {"id":"ch1-3","chapter":1,"index":3,"goal":"L4","goalOri":{"r":1,"f":0},"scale":2,"rules":{"flip":false},"solution":["AAABBB","CCDDEE","CF","FF"],"tray":{"A":{"r":3,"f":0},"B":{"r":3,"f":0},"C":{"r":2,"f":0},"D":{"r":1,"f":0},"E":{"r":1,"f":0},"F":{"r":0,"f":0}},"hash":"4bdtby","meta":{"solutions":82,"solutionsFlip":82,"solutionsNoFlip":82,"nodes":1119}},
+    {"id":"ch1-4","chapter":1,"index":4,"goal":"S4","goalOri":{"r":0,"f":0},"scale":2,"rules":{"flip":false},"solution":["  AAAB","  CDBB","EECD","FFCD"],"tray":{"A":{"r":1,"f":0},"B":{"r":0,"f":0},"C":{"r":2,"f":0},"D":{"r":0,"f":0},"E":{"r":3,"f":0},"F":{"r":1,"f":0}},"hash":"1yoxd67","meta":{"solutions":34,"solutionsFlip":34,"solutionsNoFlip":34,"nodes":303}},
+    {"id":"ch1-5","chapter":1,"index":5,"goal":"T4","goalOri":{"r":0,"f":0},"scale":2,"rules":{"flip":false},"solution":["AAABBB","CCCDDD","  EE","  FF"],"tray":{"A":{"r":3,"f":0},"B":{"r":3,"f":0},"C":{"r":3,"f":0},"D":{"r":3,"f":0},"E":{"r":3,"f":0},"F":{"r":1,"f":0}},"hash":"1hf4wiy","meta":{"solutions":5,"solutionsFlip":5,"solutionsNoFlip":5,"nodes":79}},
+    {"id":"ch2-1","chapter":2,"index":6,"goal":"U5","goalOri":{"r":0,"f":0},"scale":2,"rules":{"flip":false},"solution":["AB  CC","AB  CC","ABDDDE","ABDFFE"],"tray":{"A":{"r":0,"f":0},"B":{"r":0,"f":0},"C":{"r":1,"f":0},"D":{"r":3,"f":0},"E":{"r":2,"f":0},"F":{"r":3,"f":0}},"hash":"17pls6b","meta":{"solutions":38,"solutionsFlip":76,"solutionsNoFlip":38,"nodes":355}},
+    {"id":"ch2-2","chapter":2,"index":7,"goal":"X5","goalOri":{"r":0,"f":0},"scale":2,"rules":{"flip":true},"solution":["  AA","  AA","BBBCCC","BDDCEE","  DD","  FF"],"tray":{"A":{"r":1,"f":0},"B":{"r":0,"f":0},"C":{"r":3,"f":0},"D":{"r":2,"f":0},"E":{"r":3,"f":0},"F":{"r":3,"f":0}},"coach":"flip","flipPieces":["D"],"hash":"87qx7","meta":{"solutions":40,"solutionsFlip":40,"solutionsNoFlip":0,"nodes":955}},
+    {"id":"ch2-3","chapter":2,"index":8,"goal":"W5","goalOri":{"r":0,"f":0},"scale":2,"rules":{"flip":true},"solution":["AB","AB","ABBC","ADDC","  DDEE","  FFEE"],"tray":{"A":{"r":0,"f":0},"B":{"r":2,"f":0},"C":{"r":0,"f":0},"D":{"r":2,"f":0},"E":{"r":2,"f":0},"F":{"r":3,"f":0}},"hash":"b3dcdm","meta":{"solutions":16,"solutionsFlip":16,"solutionsNoFlip":4,"nodes":475}},
+    {"id":"ch2-4","chapter":2,"index":9,"goal":"P5","goalOri":{"r":1,"f":0},"scale":2,"rules":{"flip":true},"solution":["ABCCDD","ABBCCE","  BFEE","  FFFE"],"tray":{"A":{"r":0,"f":0},"B":{"r":0,"f":0},"C":{"r":0,"f":0},"D":{"r":3,"f":0},"E":{"r":3,"f":0},"F":{"r":0,"f":0}},"hash":"lnvdp1","meta":{"solutions":6,"solutionsFlip":6,"solutionsNoFlip":3,"nodes":208}},
+    {"id":"ch2-5","chapter":2,"index":10,"goal":"F5","goalOri":{"r":0,"f":0},"scale":2,"rules":{"flip":true},"solution":["  AAAB","  ACCB","DECC","DEEF","  EF","  FF"],"tray":{"A":{"r":0,"f":0},"B":{"r":0,"f":0},"C":{"r":1,"f":0},"D":{"r":2,"f":0},"E":{"r":0,"f":0},"F":{"r":0,"f":0}},"hash":"1cemn26","meta":{"solutions":3,"solutionsFlip":3,"solutionsNoFlip":0,"nodes":319}},
+    {"id":"bonus-1","chapter":3,"index":11,"goal":"V5","goalOri":{"r":0,"f":0},"scale":2,"rules":{"flip":true},"solution":["AA","AA","BB","CC","DCCEEE","DFFFFE"],"tray":{"A":{"r":2,"f":0},"B":{"r":3,"f":0},"C":{"r":3,"f":0},"D":{"r":2,"f":0},"E":{"r":3,"f":0},"F":{"r":3,"f":0}},"hash":"4vcbdh","meta":{"solutions":4,"solutionsFlip":4,"solutionsNoFlip":2,"nodes":612}},
+    {"id":"bonus-2","chapter":3,"index":12,"goal":"T5","goalOri":{"r":0,"f":0},"scale":2,"rules":{"flip":true},"solution":["AAAABC","DDEBBC","  EB","  EF","  EF","  FF"],"tray":{"A":{"r":1,"f":0},"B":{"r":3,"f":0},"C":{"r":0,"f":0},"D":{"r":3,"f":0},"E":{"r":0,"f":0},"F":{"r":0,"f":0}},"hash":"1wf1qe6","meta":{"solutions":2,"solutionsFlip":2,"solutionsNoFlip":1,"nodes":343}},
+    {"id":"bonus-3","chapter":3,"index":13,"goal":"L5","goalOri":{"r":1,"f":0},"scale":2,"rules":{"flip":true},"solution":["ABBBBCDD","AEECCCDD","EE","FF"],"tray":{"A":{"r":0,"f":0},"B":{"r":3,"f":0},"C":{"r":2,"f":0},"D":{"r":2,"f":0},"E":{"r":1,"f":0},"F":{"r":3,"f":0}},"hash":"1gh2zg6","meta":{"solutions":1,"solutionsFlip":1,"solutionsNoFlip":1,"nodes":1851}}
+    ],
+  };
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else {
+    globalThis.Poly = globalThis.Poly || {};
+    globalThis.Poly.levels = api;
+  }
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+
+  const mem = new Map();
+  let ls = null;
+  try {
+    ls = globalThis.localStorage;
+    const probe = '__pp_probe__';
+    ls.setItem(probe, '1');
+    ls.removeItem(probe);
+  } catch (e) {
+    ls = null;
+  }
+
+  let onQuota = null;
+  let inQuota = false;
+
+  function get(key) {
+    if (mem.has(key)) return JSON.parse(mem.get(key));
+    if (ls) {
+      try {
+        const raw = ls.getItem(key);
+        if (raw !== null) return JSON.parse(raw);
+      } catch (e) {
+        /* unreadable: treat as missing */
+      }
+    }
+    return null;
+  }
+
+  function set(key, value) {
+    const raw = JSON.stringify(value);
+    mem.set(key, raw);
+    if (!ls) return;
+    try {
+      ls.setItem(key, raw);
+      return;
+    } catch (e) {
+      /* storage full: try to make room once */
+    }
+    if (onQuota && !inQuota) {
+      inQuota = true;
+      try {
+        onQuota();
+        ls.setItem(key, raw);
+        return;
+      } catch (e2) {
+        /* still full */
+      } finally {
+        inQuota = false;
+      }
+    }
+    // the stored copy is now older than the memory copy: drop it so reads do not go back in time
+    try {
+      ls.removeItem(key);
+    } catch (e3) {
+      /* ignore */
+    }
+  }
+
+  // read straight from localStorage, ignoring this tab's memory copy (other tabs write there)
+  function peek(key) {
+    if (!ls) return null;
+    try {
+      const raw = ls.getItem(key);
+      return raw === null ? null : JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function remove(key) {
+    mem.delete(key);
+    if (!ls) return;
+    try {
+      ls.removeItem(key);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function keys(prefix) {
+    const out = new Set();
+    for (const k of mem.keys()) if (k.indexOf(prefix) === 0) out.add(k);
+    if (ls) {
+      try {
+        for (let i = 0; i < ls.length; i++) {
+          const k = ls.key(i);
+          if (k && k.indexOf(prefix) === 0) out.add(k);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    return Array.from(out);
+  }
+
+  globalThis.Poly = globalThis.Poly || {};
+  globalThis.Poly.store = {
+    available: !!ls,
+    get,
+    peek,
+    set,
+    remove,
+    keys,
+    setQuotaHandler(fn) {
+      onQuota = fn;
+    },
+  };
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+
+  const core = globalThis.Poly.core;
+  const SVGNS = 'http://www.w3.org/2000/svg';
+
+  const COLORS = {
+    I2: '#d6d1c8',
+    I3: '#aaa49b',
+    L3: '#7a756d',
+    I4: '#79c3f0',
+    O4: '#f5d457',
+    T4: '#7a50c6',
+    S4: '#3fa56c',
+    L4: '#ef8a3a',
+    F5: '#e1567b',
+    I5: '#4e8ed5',
+    L5: '#c2611b',
+    N5: '#2d8b85',
+    P5: '#b4d25e',
+    T5: '#593da2',
+    U5: '#e8a33c',
+    V5: '#3a6dad',
+    W5: '#d54a4a',
+    X5: '#8a5c3d',
+    Y5: '#9bcae8',
+    Z5: '#6e9c3b',
+  };
+
+  const TETROMINOES = ['I4', 'O4', 'L4', 'S4', 'T4'];
+  const PENTOMINOES = ['F5', 'I5', 'L5', 'N5', 'P5', 'T5', 'U5', 'V5', 'W5', 'X5', 'Y5', 'Z5'];
+
+  function mix(hex, toward, k) {
+    const a = parseInt(hex.slice(1), 16);
+    const b = parseInt(toward.slice(1), 16);
+    const ch = (v, s) => (v >> s) & 255;
+    const m = (s) => Math.round(ch(a, s) * (1 - k) + ch(b, s) * k);
+    return '#' + ((1 << 24) | (m(16) << 16) | (m(8) << 8) | m(0)).toString(16).slice(1);
+  }
+
+  function colorOf(type) {
+    return COLORS[type] || '#999999';
+  }
+
+  function strokeOf(type) {
+    return mix(colorOf(type), '#1b2442', 0.42);
+  }
+
+  function svgEl(tag, attrs, parent) {
+    const e = document.createElementNS(SVGNS, tag);
+    if (attrs) for (const k of Object.keys(attrs)) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  function h(tag, cls, parent) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  // ---------- outline of a set of cells ----------
+
+  // closed polygon around the cells, clockwise with y down; collinear points removed
+  function outline(cells) {
+    const set = new Set(cells.map((c) => c[0] + ',' + c[1]));
+    const has = (x, y) => set.has(x + ',' + y);
+    const next = new Map();
+    for (const c of cells) {
+      const x = c[0];
+      const y = c[1];
+      if (!has(x, y - 1)) next.set(x + ',' + y, [x + 1, y]);
+      if (!has(x + 1, y)) next.set(x + 1 + ',' + y, [x + 1, y + 1]);
+      if (!has(x, y + 1)) next.set(x + 1 + ',' + (y + 1), [x, y + 1]);
+      if (!has(x - 1, y)) next.set(x + ',' + (y + 1), [x, y]);
+    }
+    const start = next.keys().next().value;
+    const pts = [];
+    let key = start;
+    let guard = 0;
+    do {
+      const p = key.split(',').map(Number);
+      pts.push(p);
+      const e = next.get(key);
+      key = e[0] + ',' + e[1];
+    } while (key !== start && ++guard < 100000);
+    const out = [];
+    const n = pts.length;
+    for (let i = 0; i < n; i++) {
+      const p = pts[(i - 1 + n) % n];
+      const c = pts[i];
+      const q = pts[(i + 1) % n];
+      if ((c[0] - p[0]) * (q[1] - c[1]) - (c[1] - p[1]) * (q[0] - c[0]) !== 0) out.push(c);
+    }
+    return out;
+  }
+
+  function unit(dx, dy) {
+    const l = Math.hypot(dx, dy) || 1;
+    return [dx / l, dy / l];
+  }
+
+  function fmt(v) {
+    return Math.round(v * 100) / 100;
+  }
+
+  // path of the outline, moved inwards by `inset` px, convex corners rounded by `radius` px
+  function pathD(cells, cell, inset, radius) {
+    const poly = outline(cells);
+    const n = poly.length;
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const p = poly[(i - 1 + n) % n];
+      const c = poly[i];
+      const q = poly[(i + 1) % n];
+      const din = unit(c[0] - p[0], c[1] - p[1]);
+      const dout = unit(q[0] - c[0], q[1] - c[1]);
+      const x = c[0] * cell + inset * (-din[1] - dout[1]);
+      const y = c[1] * cell + inset * (din[0] + dout[0]);
+      const convex = din[0] * dout[1] - din[1] * dout[0] > 0;
+      if (convex && radius > 0) {
+        d += (i ? 'L' : 'M') + fmt(x - din[0] * radius) + ' ' + fmt(y - din[1] * radius);
+        d += 'Q' + fmt(x) + ' ' + fmt(y) + ' ' + fmt(x + dout[0] * radius) + ' ' + fmt(y + dout[1] * radius);
+      } else {
+        d += (i ? 'L' : 'M') + fmt(x) + ' ' + fmt(y);
+      }
+    }
+    return d + 'Z';
+  }
+
+  function clamp(v, lo, hi) {
+    return Math.max(lo, Math.min(hi, v));
+  }
+
+  // SVG of a piece; opts.color overrides the type colour, opts.ghost draws a shadow
+  function pieceSvg(type, ori, cell, opts) {
+    const o = opts || {};
+    const s = core.shape(type, ori);
+    const w = s.w * cell;
+    const hgt = s.h * cell;
+    const svg = svgEl('svg', { width: w, height: hgt, viewBox: '0 0 ' + w + ' ' + hgt, class: 'psvg', 'aria-hidden': 'true' });
+    const sw = clamp(cell * 0.06, 1, 2);
+    const inset = clamp(cell * 0.05, 0.8, 2) + sw / 2;
+    const radius = clamp(cell * 0.16, 1.2, 7);
+    const fill = o.color || colorOf(type);
+    svgEl('path', {
+      d: pathD(s.cells, cell, inset, radius),
+      fill: o.ghost ? fill : fill,
+      'fill-opacity': o.ghost ? 0.35 : 1,
+      stroke: o.ghost ? 'none' : o.stroke || strokeOf(type),
+      'stroke-width': sw,
+      'stroke-linejoin': 'round',
+    }, svg);
+    return svg;
+  }
+
+  // flat silhouette (icons, album, tiles)
+  function shapeIcon(type, ori, cell, color) {
+    const s = core.shape(type, ori || { r: 0, f: 0 });
+    const w = s.w * cell;
+    const hgt = s.h * cell;
+    const svg = svgEl('svg', { width: w, height: hgt, viewBox: '0 0 ' + w + ' ' + hgt, class: 'icon-svg', 'aria-hidden': 'true' });
+    svgEl('path', { d: pathD(s.cells, cell, 0, Math.min(2, cell * 0.2)), fill: color || 'currentColor' }, svg);
+    return svg;
+  }
+
+  // ---------- board ----------
+
+  function boardSvg(level, cell, goalOri) {
+    const W = level.W;
+    const H = level.H;
+    const svg = svgEl('svg', { width: W * cell, height: H * cell, viewBox: '0 0 ' + W * cell + ' ' + H * cell, class: 'board-svg', 'aria-hidden': 'true' });
+    const cells = [];
+    const g = svgEl('g', { class: 'bc' }, svg);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (!level.target[y * W + x]) continue;
+        cells.push([x, y]);
+        svgEl('rect', { x: x * cell + 0.5, y: y * cell + 0.5, width: cell - 1, height: cell - 1 }, g);
+      }
+    }
+    const scale = level.def.scale || 2;
+    const goal = core.shape(level.def.goal, goalOri || level.def.goalOri || { r: 0, f: 0 });
+    const gm = svgEl('g', { class: 'bm' }, svg);
+    for (const c of goal.cells) {
+      svgEl('rect', { x: c[0] * scale * cell + 1, y: c[1] * scale * cell + 1, width: scale * cell - 2, height: scale * cell - 2, rx: 2 }, gm);
+    }
+    svgEl('path', { d: pathD(cells, cell, 0, 0), class: 'bo' }, svg);
+    return svg;
+  }
+
+  function targetPath(level, cell) {
+    const cells = [];
+    for (let y = 0; y < level.H; y++) for (let x = 0; x < level.W; x++) if (level.target[y * level.W + x]) cells.push([x, y]);
+    return pathD(cells, cell, 1.5, clamp(cell * 0.16, 1.2, 7));
+  }
+
+  // ---------- icons ----------
+
+  const ICONS = {
+    back: '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    menu: '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    flip: '<svg viewBox="0 0 28 24" width="28" height="24" aria-hidden="true"><path d="M14 3v18" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.5 2.5"/><path d="M11 6L3 12l8 6z" fill="currentColor"/><path d="M17 6l8 6-8 6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+    pin: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="6" r="4" fill="#d8434b" stroke="#fff" stroke-width="1.5"/><path d="M8 10v5" stroke="#23356b" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  };
+
+  // ---------- animations ----------
+
+  const running = new Set();
+
+  function reducedMotion() {
+    return !!(globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  // Animation.finished exists only from Chrome 84; older engines get onfinish/oncancel
+  function whenDone(anim) {
+    if (anim.finished && typeof anim.finished.then === 'function') return anim.finished.then(() => undefined, () => undefined);
+    return new Promise((resolve) => {
+      anim.onfinish = () => resolve();
+      anim.oncancel = () => resolve();
+    });
+  }
+
+  function track(anim) {
+    running.add(anim);
+    whenDone(anim).then(() => running.delete(anim));
+    return anim;
+  }
+
+  function finishAll() {
+    for (const a of Array.from(running)) {
+      try {
+        a.finish();
+      } catch (e) {
+        /* already gone */
+      }
+    }
+  }
+
+  // resolves when the animation ends or, as a safety net, shortly after it should have ended:
+  // hidden tabs and some webviews pause animation timelines, and nothing may wait on them forever
+  function animate(el, frames, opts) {
+    if (!el.animate) return Promise.resolve();
+    let anim;
+    try {
+      anim = track(el.animate(frames, opts));
+    } catch (e) {
+      return Promise.resolve();
+    }
+    const limit = (opts.duration || 0) + (opts.delay || 0) + 600;
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        resolve();
+      };
+      whenDone(anim).then(finish);
+      setTimeout(() => {
+        if (done) return;
+        try {
+          anim.finish();
+        } catch (e) {
+          /* already finished or removed */
+        }
+        finish();
+      }, limit);
+    });
+  }
+
+  // a copy of `node` flies from rect `from` to the element `to`; `to` is hidden meanwhile
+  function fly(layer, node, from, to, opts) {
+    const o = opts || {};
+    if (!to || !from || reducedMotion()) return Promise.resolve();
+    const toRect = to.getBoundingClientRect();
+    if (!toRect.width || !from.width) return Promise.resolve();
+    const proxy = h('div', 'proxy', layer);
+    proxy.appendChild(node);
+    proxy.style.left = toRect.left + 'px';
+    proxy.style.top = toRect.top + 'px';
+    proxy.style.width = toRect.width + 'px';
+    proxy.style.height = toRect.height + 'px';
+    const sx = from.width / toRect.width;
+    const sy = from.height / toRect.height;
+    const dx = from.left - toRect.left;
+    const dy = from.top - toRect.top;
+    to.style.visibility = 'hidden';
+    const extra = o.turn ? ' rotate(' + o.turn + 'deg)' : '';
+    const done = animate(proxy, [
+      { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sx + ',' + sy + ')' + extra, offset: 0 },
+      { transform: 'none', offset: 1 },
+    ], { duration: o.duration || 220, delay: o.delay || 0, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' });
+    return done.then(() => {
+      proxy.remove();
+      to.style.visibility = '';
+    });
+  }
+
+  // a still copy shown at `rect` for `ms`: the reduced-motion way to say "this piece was here"
+  function flashAt(layer, node, rect, ms) {
+    if (!rect || !rect.width) return;
+    const proxy = h('div', 'proxy', layer);
+    proxy.appendChild(node);
+    proxy.style.left = rect.left + 'px';
+    proxy.style.top = rect.top + 'px';
+    setTimeout(() => proxy.remove(), ms);
+  }
+
+  function shake(el) {
+    if (!el || reducedMotion()) return;
+    animate(el, [
+      { transform: 'translateX(0)' },
+      { transform: 'translateX(-4px)' },
+      { transform: 'translateX(4px)' },
+      { transform: 'translateX(-3px)' },
+      { transform: 'translateX(0)' },
+    ], { duration: 220 });
+  }
+
+  // the element was redrawn in its new position; play the turn or the mirror around a point
+  function spin(el, kind, originX, originY) {
+    if (!el || reducedMotion()) return;
+    el.style.transformOrigin = originX + 'px ' + originY + 'px';
+    const from = kind === 'flip' ? 'scaleX(-1)' : 'rotate(-90deg)';
+    animate(el, [{ transform: from }, { transform: 'none' }], { duration: 170, easing: 'ease-out' }).then(() => {
+      el.style.transformOrigin = '';
+    });
+  }
+
+  function pulse(el) {
+    if (!el) return;
+    if (reducedMotion()) {
+      el.classList.add('pulse-static');
+      return;
+    }
+    el.classList.add('pulse');
+  }
+
+  function unpulse(el) {
+    if (!el) return;
+    el.classList.remove('pulse', 'pulse-static');
+  }
+
+  globalThis.Poly = globalThis.Poly || {};
+  globalThis.Poly.view = {
+    COLORS,
+    TETROMINOES,
+    PENTOMINOES,
+    colorOf,
+    strokeOf,
+    svgEl,
+    h,
+    outline,
+    pathD,
+    pieceSvg,
+    shapeIcon,
+    boardSvg,
+    targetPath,
+    ICONS,
+    reducedMotion,
+    finishAll,
+    animate,
+    fly,
+    flashAt,
+    shake,
+    spin,
+    pulse,
+    unpulse,
+  };
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+
+  const DRAG_PX = 8;
+  const TAP_MS = 300;
+
+  // Gestures on a stable root element. Pointer capture is taken on the root and only when a piece was hit,
+  // so buttons keep working and moving the dragged copy never loses the capture.
+  function createInput(root, hooks) {
+    let g = null;
+
+    function end() {
+      const gg = g;
+      g = null;
+      if (gg) {
+        try {
+          root.releasePointerCapture(gg.id);
+        } catch (e) {
+          /* not captured */
+        }
+      }
+      return gg;
+    }
+
+    root.addEventListener('pointerdown', (e) => {
+      hooks.onInput(e);
+      if (g) {
+        // a second finger is ignored; a new primary press, or a press with the same id (a mouse released
+        // outside the window), means the release of the open gesture was lost: drop the stale gesture
+        if (!e.isPrimary && e.pointerId !== g.id) return;
+        hooks.onCancel(end());
+      }
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (hooks.isBlocked()) return;
+      hooks.finishFlights();
+      const hit = hooks.hitTest(e);
+      if (!hit) return;
+      e.preventDefault();
+      try {
+        root.setPointerCapture(e.pointerId);
+      } catch (err) {
+        /* synthetic events in tests have no real pointer */
+      }
+      g = {
+        id: e.pointerId,
+        type: e.pointerType || 'mouse',
+        x0: e.clientX,
+        y0: e.clientY,
+        x: e.clientX,
+        y: e.clientY,
+        t0: performance.now(),
+        dragging: false,
+        hit,
+      };
+      hooks.onPress(g);
+      if (hit.pinned) end();
+    });
+
+    root.addEventListener('pointermove', (e) => {
+      if (!g || e.pointerId !== g.id) return;
+      g.x = e.clientX;
+      g.y = e.clientY;
+      if (!g.dragging && Math.hypot(g.x - g.x0, g.y - g.y0) > DRAG_PX) {
+        g.dragging = true;
+        hooks.onDragStart(g);
+      }
+      if (g.dragging) {
+        hooks.onInput(e);
+        hooks.onDragMove(g);
+      }
+    });
+
+    root.addEventListener('pointerup', (e) => {
+      if (!g || e.pointerId !== g.id) return;
+      hooks.onInput(e);
+      g.x = e.clientX;
+      g.y = e.clientY;
+      const gg = end();
+      if (gg.dragging) hooks.onDrop(gg);
+      else if (performance.now() - gg.t0 < TAP_MS && Math.hypot(gg.x - gg.x0, gg.y - gg.y0) < DRAG_PX) hooks.onTap(gg);
+    });
+
+    function cancel(e) {
+      if (!g || e.pointerId !== g.id) return;
+      hooks.onCancel(end());
+    }
+    root.addEventListener('pointercancel', cancel);
+    root.addEventListener('lostpointercapture', cancel);
+
+    return {
+      active() {
+        return !!g;
+      },
+      dragging() {
+        return !!(g && g.dragging);
+      },
+      cancel() {
+        if (g) hooks.onCancel(end());
+      },
+    };
+  }
+
+  globalThis.Poly = globalThis.Poly || {};
+  globalThis.Poly.input = { createInput };
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+
+  const P = globalThis.Poly;
+  const core = P.core;
+  const stats = P.stats;
+  const store = P.store;
+  const view = P.view;
+  const config = P.config;
+  const LEVELS = P.levels.levels;
+  const BY_ID = {};
+  LEVELS.forEach((l) => {
+    BY_ID[l.id] = l;
+  });
+
+  const KEY = {
+    meta: 'pp1:meta',
+    outbox: 'pp1:outbox',
+    tab: 'pp1:tab',
+    level: (id) => 'pp1:level:' + id,
+    attempt: (id) => 'pp1:attempt:' + id,
+  };
+  const HINT_DELAY = 30000;
+  const SNAPSHOT_EVERY = 60000;
+  const CH1_GOALS = LEVELS.filter((l) => l.chapter === 1).map((l) => l.goal);
+
+  const $ = (id) => document.getElementById(id);
+  const now = () => Date.now();
+
+  function rid(n) {
+    const abc = 'abcdefghijkmnpqrstuvwxyz23456789';
+    let s = '';
+    const buf = new Uint32Array(n);
+    if (globalThis.crypto && crypto.getRandomValues) crypto.getRandomValues(buf);
+    else for (let k = 0; k < n; k++) buf[k] = Math.floor(Math.random() * 4294967296);
+    for (let k = 0; k < n; k++) s += abc[buf[k] % abc.length];
+    return s;
+  }
+
+  // ---------- state ----------
+
+  const tabId = rid(8);
+  const sessionId = rid(8);
+  let meta = null;
+  let outbox = {};
+  const inflight = {};
+  let frozen = false;
+  let screen = null;
+  let level = null; // { def, lvl, st, ls, at, cell, tray: {slot, cell, rows} }
+  let selected = null;
+  let inputBlocked = false;
+  let pollTimer = null;
+  let resetArmed = 0;
+  let resetTimer = null;
+  let albumReturn = 'levels';
+  let resultsReturn = 'levels';
+  let menuOpen = false;
+  let pendingLayout = false;
+  let lastLandscape = null;
+  let hiddenHandled = false;
+  let finalDirty = false;
+  let saveMetaTimer = null;
+  let input = null;
+
+  // ---------- persistence ----------
+
+  function freeze() {
+    if (frozen) return;
+    frozen = true;
+    stopPoll();
+    if (input) input.cancel();
+    $('othertab').hidden = false;
+  }
+
+  function ownTab() {
+    const t = store.peek(KEY.tab);
+    if (t && t !== tabId) {
+      freeze();
+      return false;
+    }
+    return true;
+  }
+
+  function save(key, value) {
+    if (frozen || !ownTab()) return;
+    store.set(key, value);
+  }
+
+  function saveMeta() {
+    save(KEY.meta, meta);
+  }
+
+  function saveMetaSoon() {
+    clearTimeout(saveMetaTimer);
+    saveMetaTimer = setTimeout(saveMeta, 400);
+  }
+
+  function saveLevel() {
+    if (!level) return;
+    level.ls.pieces = level.st.pieces.map((p) => ({ ori: p.ori, at: p.at, pinned: p.pinned, placedSeq: p.placedSeq }));
+    level.ls.seq = level.st.seq;
+    save(KEY.level(level.def.id), level.ls);
+  }
+
+  function saveAttempt(at) {
+    save(KEY.attempt(at.id), at);
+  }
+
+  function saveAll() {
+    saveMeta();
+    if (level) {
+      saveLevel();
+      saveAttempt(level.at);
+    }
+  }
+
+  function loadAttempt(id) {
+    if (level && level.at.id === id) return level.at;
+    return store.get(KEY.attempt(id));
+  }
+
+  function allAttempts() {
+    const list = store
+      .keys('pp1:attempt:')
+      .map((k) => store.get(k))
+      .filter(Boolean);
+    if (level && !list.some((a) => a.id === level.at.id)) list.push(level.at);
+    return list.map((a) => (level && a.id === level.at.id ? level.at : a)).sort((a, b) => a.startedAt - b.startedAt);
+  }
+
+  // drop journals of finished and sent attempts when storage is full
+  store.setQuotaHandler(() => {
+    for (const k of store.keys('pp1:attempt:')) {
+      const at = store.get(k);
+      if (at && at.done && !outbox['attempt:' + at.id]) {
+        at.events = [];
+        at.tail = [];
+        store.set(k, at);
+      }
+    }
+  });
+
+  // ---------- sending ----------
+
+  function recMeta() {
+    return {
+      build: config.build,
+      deviceId: meta.deviceId,
+      tester: meta.tester,
+      sessionId,
+      device: meta.device,
+      viewport: innerWidth + 'x' + innerHeight,
+      playthrough: meta.playthrough,
+    };
+  }
+
+  function sessionData() {
+    return {
+      live: meta.live,
+      playthrough: meta.playthrough,
+      device: meta.device,
+      ua: navigator.userAgent,
+      viewport: innerWidth + 'x' + innerHeight,
+      visits: meta.visits,
+      albumOpens: meta.albumOpens,
+      bonus: meta.bonus,
+      progress: meta.progress,
+      introSeen: meta.introSeen,
+      ch2IntroSeen: meta.ch2IntroSeen,
+    };
+  }
+
+  function enqueue(key) {
+    outbox[key] = (outbox[key] || 0) + 1;
+    save(KEY.outbox, outbox);
+  }
+
+  function buildRecord(key) {
+    meta.seq = stats.nextSeq(meta.seq, now());
+    if (key === 'final') return stats.record(recMeta(), 'final', 'final', Object.assign({ live: meta.live }, meta.final), meta.seq);
+    if (key === 'session') return stats.record(recMeta(), 'session', sessionId, sessionData(), meta.seq);
+    if (key.indexOf('attempt:') === 0) {
+      const at = loadAttempt(key.slice(8));
+      return at ? stats.attemptRecord(recMeta(), at, meta.seq) : null;
+    }
+    return null;
+  }
+
+  function flush(beacon) {
+    if (!config.formAction || !config.formField || frozen) return;
+    const items = [];
+    for (const key of Object.keys(outbox)) {
+      if (!beacon && inflight[key] === outbox[key]) continue;
+      const rec = buildRecord(key);
+      if (!rec) {
+        delete outbox[key];
+        continue;
+      }
+      const body = new URLSearchParams();
+      body.set(config.formField, stats.serialize(rec));
+      items.push({ key, ver: outbox[key], body, size: body.toString().length });
+    }
+    saveMeta();
+    save(KEY.outbox, outbox);
+    if (beacon) {
+      if (!navigator.sendBeacon) return;
+      items.sort((a, b) => a.size - b.size);
+      let budget = 60000;
+      for (const it of items) {
+        if (it.size > budget) break;
+        try {
+          if (navigator.sendBeacon(config.formAction, it.body)) budget -= it.size;
+        } catch (e) {
+          /* keep it queued */
+        }
+      }
+      return;
+    }
+    for (const it of items) {
+      inflight[it.key] = it.ver;
+      fetch(config.formAction, { method: 'POST', mode: 'no-cors', body: it.body })
+        .then(() => {
+          if (outbox[it.key] === it.ver) {
+            delete outbox[it.key];
+            save(KEY.outbox, outbox);
+          }
+        })
+        .catch(() => undefined)
+        .then(() => {
+          if (inflight[it.key] === it.ver) delete inflight[it.key];
+        });
+    }
+  }
+
+  // ---------- meta ----------
+
+  function loadMeta() {
+    const m = store.get(KEY.meta) || {};
+    return Object.assign(
+      {
+        v: 1,
+        deviceId: rid(10),
+        tester: null,
+        live: false,
+        playthrough: 1,
+        introSeen: false,
+        ch2IntroSeen: false,
+        hintBlinkSeen: false,
+        screen: null,
+        currentLevel: null,
+        progress: {},
+        attemptsByLevel: {},
+        final: { answers: { q1: '', q2: '', q3: '' }, wantMore: null, name: '', sent: false },
+        albumOpens: [],
+        bonus: { started: [], solved: [] },
+        visits: [],
+        seq: 0,
+        device: null,
+      },
+      m
+    );
+  }
+
+  function resetProgress() {
+    for (const k of store.keys('pp1:level:')) store.remove(k);
+    meta.progress = {};
+    meta.introSeen = false;
+    meta.ch2IntroSeen = false;
+    meta.hintBlinkSeen = false;
+    meta.final = { answers: { q1: '', q2: '', q3: '' }, wantMore: null, name: '', sent: false };
+    meta.screen = null;
+    meta.currentLevel = null;
+    meta.playthrough = (meta.playthrough || 1) + 1;
+  }
+
+  // ---------- screens ----------
+
+  const SCREENS = ['start', 'levels', 'level', 'ch2', 'album', 'bonus', 'results', 'thanks'];
+
+  function show(name) {
+    view.finishAll();
+    for (const s of SCREENS) $('screen-' + s).hidden = s !== name;
+    screen = name;
+    if (name !== 'level') stopPoll();
+    meta.screen = name === 'level' || name === 'results' ? name : 'levels';
+    saveMeta();
+  }
+
+  function pauseLevel(flag) {
+    if (!level || level.at.done) return;
+    stats.setFlag(level.at.clock, now(), 'paused', flag);
+    saveAttempt(level.at);
+  }
+
+  // ---------- level list ----------
+
+  function solved(id) {
+    return !!(meta.progress[id] && meta.progress[id].solved);
+  }
+
+  function unlocked(id) {
+    const i = LEVELS.findIndex((l) => l.id === id);
+    for (let k = 0; k < i; k++) if (!solved(LEVELS[k].id)) return false;
+    return true;
+  }
+
+  function chapterDone(ch) {
+    return LEVELS.filter((l) => l.chapter === ch).every((l) => solved(l.id));
+  }
+
+  function strip(container, types, collected, label) {
+    container.textContent = '';
+    if (label) view.h('div', 'strip-label', container).textContent = label;
+    const row = view.h('div', 'strip-row', container);
+    for (const type of types) {
+      const cellEl = view.h('div', 'strip-cell', row);
+      cellEl.dataset.type = type;
+      const has = collected.indexOf(type) !== -1;
+      if (has) cellEl.appendChild(view.shapeIcon(type, { r: 0, f: 0 }, type.length && core.CATALOG[type].length > 4 ? 5 : 6, view.colorOf(type)));
+      else cellEl.classList.add('empty');
+    }
+    return row;
+  }
+
+  function collectedTetrominoes() {
+    return LEVELS.filter((l) => l.chapter === 1 && solved(l.id)).map((l) => l.goal);
+  }
+
+  function collectedPentominoes() {
+    return LEVELS.filter((l) => l.chapter >= 2 && solved(l.id)).map((l) => l.goal);
+  }
+
+  function renderLevels() {
+    const list = $('levels-list');
+    list.textContent = '';
+    const chapters = [
+      { ch: 1, title: 'Глава 1 · Тетрамино' },
+      { ch: 2, title: 'Глава 2 · Пентамино' },
+      { ch: 3, title: 'Бонус' },
+    ];
+    for (const c of chapters) {
+      if (c.ch === 3 && !chapterDone(2)) continue;
+      const block = view.h('section', 'chapter', list);
+      view.h('h2', 'chapter-title', block).textContent = c.title;
+      const grid = view.h('div', 'tiles', block);
+      LEVELS.filter((l) => l.chapter === c.ch).forEach((def, k) => {
+        const open = unlocked(def.id);
+        const tile = view.h('button', 'tile', grid);
+        tile.type = 'button';
+        tile.dataset.id = def.id;
+        const p = meta.progress[def.id];
+        if (!open) tile.classList.add('locked');
+        if (p && p.solved) tile.classList.add(p.bestHints ? 'hinted' : 'solved');
+        tile.disabled = !open;
+        const color = p && p.solved ? view.colorOf(def.goal) : null;
+        tile.appendChild(view.shapeIcon(def.goal, def.goalOri, 7, color || undefined));
+        const num = view.h('span', 'tile-num', tile);
+        num.textContent = String(k + 1);
+        tile.setAttribute('aria-label', 'Уровень ' + (k + 1) + (open ? '' : ', закрыт') + (p && p.solved ? ', пройден' : ''));
+      });
+      if (c.ch === 1) strip(view.h('div', 'strip strip-levels', block), view.TETROMINOES, collectedTetrominoes(), 'Собрано');
+    }
+  }
+
+  function openLevels() {
+    if (level) leaveLevel(false);
+    renderLevels();
+    show('levels');
+  }
+
+  // ---------- album ----------
+
+  function openAlbum(from) {
+    albumReturn = from;
+    if (from === 'level' || from === 'win') pauseLevel(true);
+    meta.albumOpens.push({ t: now(), from });
+    if (meta.albumOpens.length > 100) meta.albumOpens.shift();
+    const list = $('album-list');
+    list.textContent = '';
+    const pages = [
+      { title: 'Тетрамино', types: view.TETROMINOES, have: collectedTetrominoes() },
+      { title: 'Пентамино', types: view.PENTOMINOES, have: collectedPentominoes() },
+    ];
+    for (const page of pages) {
+      const block = view.h('section', 'album-page', list);
+      view.h('h2', 'chapter-title', block).textContent = page.title + ' ' + page.have.length + '/' + page.types.length;
+      const grid = view.h('div', 'album-grid', block);
+      for (const type of page.types) {
+        const has = page.have.indexOf(type) !== -1;
+        const item = view.h('div', 'album-item' + (has ? '' : ' missing'), grid);
+        item.appendChild(view.shapeIcon(type, { r: 0, f: 0 }, 9, has ? view.colorOf(type) : undefined));
+        if (!has) view.h('span', 'album-soon', item).textContent = 'Скоро';
+      }
+    }
+    if (screen === 'level') $('win').hidden = true;
+    show('album');
+  }
+
+  function closeAlbum() {
+    if (albumReturn === 'level' || albumReturn === 'win') {
+      show('level');
+      layoutLevel();
+      if (albumReturn === 'win') showWinCard(false);
+      else {
+        pauseLevel(false);
+        startPoll();
+      }
+    } else openLevels();
+  }
+
+  // ---------- level ----------
+
+  function nextLevelId(id) {
+    const i = LEVELS.findIndex((l) => l.id === id);
+    return i >= 0 && i + 1 < LEVELS.length ? LEVELS[i + 1].id : null;
+  }
+
+  // fromBoot: the page was just (re)loaded on this level; only then a pending win card comes back
+  function openLevel(id, fromBoot) {
+    const def = BY_ID[id];
+    if (!def) return openLevels();
+    if (def.chapter >= 2 && !meta.ch2IntroSeen) return showCh2Intro(id);
+    if (level) leaveLevel(false);
+    disarmReset();
+    const lvl = core.parseLevel(def);
+    const st = core.newState(lvl);
+    let ls = store.get(KEY.level(id));
+    let at = null;
+    let resumed = false;
+    if (ls && ls.pendingWin && !fromBoot) {
+      ls.pendingWin = false;
+      save(KEY.level(id), ls);
+    }
+    if (ls && ls.hash === def.hash && (!ls.done || ls.pendingWin)) at = store.get(KEY.attempt(ls.attemptId));
+    if (at && ls.pieces) {
+      resumed = true;
+      ls.pieces.forEach((sp, i) => {
+        const p = st.pieces[i];
+        if (!p) return;
+        p.ori = sp.ori;
+        if (sp.at) {
+          core.place(st, p, sp.ori, sp.at.x, sp.at.y);
+          p.pinned = !!sp.pinned;
+          p.placedSeq = sp.placedSeq || 0;
+        }
+      });
+      st.seq = ls.seq || 0;
+      at.clock = stats.restoreClock(at.clock, now());
+    } else {
+      const n = (meta.attemptsByLevel[id] || 0) + 1;
+      meta.attemptsByLevel[id] = n;
+      at = stats.newAttempt({ id: id + '-' + n + '-' + rid(4), level: id, levelIndex: def.index, n, now: now() });
+      ls = {
+        hash: def.hash,
+        attemptId: at.id,
+        pieces: null,
+        seq: 0,
+        coachRotShown: false,
+        coachRotDone: false,
+        coachFlipShown: false,
+        coachFlipDone: false,
+        dropped: false,
+        hintAvailable: false,
+        firstHintUsed: false,
+        pendingWin: false,
+        done: false,
+        lastSnapA: 0,
+      };
+      if (def.chapter === 3 && meta.bonus.started.indexOf(id) === -1) meta.bonus.started.push(id);
+    }
+    level = { def, lvl, st, ls, at, cell: 40, tray: null };
+    selected = null;
+    inputBlocked = false;
+    meta.currentLevel = id;
+    show('level');
+    $('lv-title').textContent = titleOf(def);
+    const icon = $('lv-goal-icon');
+    icon.textContent = '';
+    icon.appendChild(view.shapeIcon(def.goal, def.goalOri, 5));
+    $('lv-flip').style.visibility = def.rules.flip ? 'visible' : 'hidden';
+    $('screen-level').classList.toggle('has-coach', def.coach === 'rot' || def.coach === 'flip');
+    if (!at.done) {
+      stats.setFlag(at.clock, now(), 'paused', false);
+      stats.setFlag(at.clock, now(), 'hidden', document.hidden);
+      if (resumed && fromBoot) log('show');
+    }
+    setupCoach(true);
+    updateHintButton(false);
+    layoutLevel();
+    select(selected);
+    saveAll();
+    enqueue('session');
+    if (ls.pendingWin) {
+      inputBlocked = true;
+      showWinCard(false);
+      return;
+    }
+    if (!at.done && core.isSolved(st)) {
+      // solved before the win was recorded (closed in the middle of it): record it now
+      checkWin();
+      return;
+    }
+    startPoll();
+    if (!resumed) growGoal();
+  }
+
+  function titleOf(def) {
+    if (def.chapter === 3) return 'Бонус · ' + (LEVELS.filter((l) => l.chapter === 3).indexOf(def) + 1) + '/3';
+    const inCh = LEVELS.filter((l) => l.chapter === def.chapter);
+    return 'Глава ' + def.chapter + ' · ' + (inCh.indexOf(def) + 1) + '/' + inCh.length;
+  }
+
+  function leaveLevel(isExit) {
+    if (!level) return;
+    if (input) input.cancel();
+    clearDrag();
+    disarmReset();
+    if (!level.at.done) {
+      if (isExit) log('exit');
+      stats.setFlag(level.at.clock, now(), 'paused', true);
+      enqueue('attempt:' + level.at.id);
+    }
+    saveAll();
+    flush(false);
+    stopPoll();
+    $('win').hidden = true;
+    level = null;
+    selected = null;
+  }
+
+  function log(code, piece, num) {
+    if (!level || level.at.done) return;
+    stats.log(level.at, now(), code, piece, num, core.filledCount(level.st));
+    saveAttempt(level.at);
+    touchVisit();
+  }
+
+  // the current visit lasts until the last thing the player did
+  function touchVisit() {
+    const v = meta.visits[meta.visits.length - 1];
+    if (v) v.last = now();
+    saveMetaSoon();
+  }
+
+  function startPoll() {
+    stopPoll();
+    pollTimer = setInterval(pollTick, 1000);
+  }
+
+  function stopPoll() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  function pollTick() {
+    if (!level || level.at.done || frozen || screen !== 'level' || menuOpen) return;
+    const at = level.at;
+    const t = now();
+    if (stats.poll(at, t, core.filledCount(level.st))) saveAttempt(at);
+    const a = stats.activeAt(at.clock, t);
+    const ls = level.ls;
+    if (!ls.hintAvailable && a >= HINT_DELAY) {
+      const idx = level.def.index;
+      if ((idx !== 1 || at.acc.rots > 0) && (idx !== 7 || at.acc.flips > 0)) {
+        ls.hintAvailable = true;
+        log('hintShow');
+        updateHintButton(!meta.hintBlinkSeen);
+        meta.hintBlinkSeen = true;
+        saveLevel();
+        saveMeta();
+      }
+    }
+    if (a - (ls.lastSnapA || 0) >= SNAPSHOT_EVERY) {
+      ls.lastSnapA = a;
+      saveLevel();
+      enqueue('attempt:' + at.id);
+      flush(false);
+    }
+  }
+
+  // ---------- coach ----------
+
+  function coachText(text, icon) {
+    const el = $('lv-coach');
+    el.textContent = '';
+    if (icon) {
+      const span = view.h('span', 'coach-icon', el);
+      span.innerHTML = view.ICONS[icon];
+    }
+    if (text) el.appendChild(document.createTextNode(text));
+  }
+
+  // level 1: "drag" until the first drop, then "tap to rotate" until the first rotation (skipped if already rotated)
+  function setupCoach(entering) {
+    const ls = level.ls;
+    const def = level.def;
+    const flipBtn = $('lv-flip');
+    view.unpulse(flipBtn);
+    coachText('');
+    if (level.at.done) return;
+    if (def.coach === 'rot') {
+      if (!ls.dropped) coachText('Перетащи детали в контур');
+      else if (ls.coachRotShown && !ls.coachRotDone) coachText('Коснись детали, чтобы повернуть');
+    }
+    if (def.coach === 'flip' && !ls.coachFlipDone) {
+      if (!ls.coachFlipShown && entering) {
+        ls.coachFlipShown = true;
+        log('coachFlip');
+      }
+      const letter = (def.flipPieces || [])[0];
+      const p = level.st.pieces.find((q) => q.letter === letter);
+      if (p && !p.at) selected = p.i;
+      coachText('отражает выбранную деталь', 'flip');
+      view.pulse(flipBtn);
+    }
+  }
+
+  function coachAfterDrop() {
+    const ls = level.ls;
+    if (level.def.coach !== 'rot' || ls.dropped) return;
+    ls.dropped = true;
+    if (ls.coachRotDone) {
+      coachText('');
+      return;
+    }
+    ls.coachRotShown = true;
+    log('coachRot');
+    coachText('Коснись детали, чтобы повернуть');
+    saveLevel();
+  }
+
+  function coachAfterRotate() {
+    const ls = level.ls;
+    if (level.def.coach !== 'rot' || ls.coachRotDone) return;
+    ls.coachRotDone = true;
+    if (ls.dropped) coachText('');
+    saveLevel();
+  }
+
+  function coachAfterFlip() {
+    const ls = level.ls;
+    if (level.def.coach === 'flip' && !ls.coachFlipDone) {
+      ls.coachFlipDone = true;
+      coachText('');
+      view.unpulse($('lv-flip'));
+      saveLevel();
+    }
+  }
+
+  function updateHintButton(blink) {
+    const btn = $('lv-hint');
+    const on = !!(level && level.ls.hintAvailable && !level.at.done);
+    btn.style.visibility = on ? 'visible' : 'hidden';
+    btn.disabled = !on;
+    if (on && blink && !view.reducedMotion()) view.animate(btn, [{ opacity: 1 }, { opacity: 0.25 }, { opacity: 1 }, { opacity: 0.25 }, { opacity: 1 }], { duration: 1200 });
+  }
+
+  // ---------- layout and rendering ----------
+
+  function maxDim(lvl) {
+    let m = 1;
+    for (const p of lvl.pieces) {
+      const s = core.shape(p.type, { r: 0, f: 0 });
+      m = Math.max(m, s.w, s.h);
+    }
+    return m;
+  }
+
+  function layoutLevel() {
+    updateRotateOverlay();
+    if (!level || screen !== 'level') return;
+    const vw = innerWidth;
+    const gutter = vw < 360 ? 8 : 16;
+    document.documentElement.style.setProperty('--gutter', gutter + 'px');
+    const colW = Math.min(vw - 2 * gutter, 480);
+    const n = level.lvl.pieces.length;
+    const gap = 6;
+    let slot = Math.min(72, Math.floor((colW - gap * (n - 1)) / n));
+    let rows = 1;
+    if (slot < 44) {
+      rows = 2;
+      const perRow = Math.ceil(n / 2);
+      slot = Math.min(72, Math.floor((colW - gap * (perRow - 1)) / perRow));
+    }
+    const trayCell = Math.max(4, Math.floor((slot - 8) / maxDim(level.lvl)));
+    level.tray = { slot, rows, cell: trayCell };
+    const trayEl = $('lv-tray');
+    trayEl.style.setProperty('--slot', slot + 'px');
+    trayEl.style.height = rows * slot + (rows - 1) * gap + 'px';
+    renderTray();
+    const area = $('lv-board-area').getBoundingClientRect();
+    const cell = Math.max(12, Math.floor(Math.min(area.width / level.lvl.W, area.height / level.lvl.H, 56)));
+    level.cell = cell;
+    renderBoard();
+  }
+
+  function renderBoard() {
+    const board = $('lv-board');
+    const { lvl, st, cell } = level;
+    board.textContent = '';
+    board.style.width = lvl.W * cell + 'px';
+    board.style.height = lvl.H * cell + 'px';
+    board.appendChild(view.boardSvg(lvl, cell, level.def.goalOri));
+    const layer = view.h('div', 'pieces', board);
+    for (const p of st.pieces) {
+      if (!p.at) continue;
+      const el = view.h('div', 'piece', layer);
+      el.dataset.i = p.i;
+      el.style.left = p.at.x * cell + 'px';
+      el.style.top = p.at.y * cell + 'px';
+      el.appendChild(view.pieceSvg(p.type, p.ori, cell));
+      if (p.i === selected) el.classList.add('selected');
+      if (p.pinned) {
+        el.classList.add('pinned');
+        const pin = view.h('span', 'pin', el);
+        pin.innerHTML = view.ICONS.pin;
+        const first = core.shape(p.type, p.ori).first;
+        pin.style.left = (first[0] + 0.5) * cell - 7 + 'px';
+        pin.style.top = (first[1] + 0.5) * cell - 7 + 'px';
+      }
+    }
+    view.h('div', 'ghost', board).id = 'lv-ghost';
+    if (level.at.done) winFill(false);
+  }
+
+  function renderTray() {
+    const trayEl = $('lv-tray');
+    trayEl.textContent = '';
+    const { st } = level;
+    for (const p of st.pieces) {
+      const slot = view.h('div', 'slot', trayEl);
+      slot.dataset.i = p.i;
+      if (p.at) {
+        slot.classList.add('empty');
+        continue;
+      }
+      if (p.i === selected) slot.classList.add('selected');
+      slot.appendChild(view.pieceSvg(p.type, p.ori, level.tray.cell));
+    }
+  }
+
+  function render() {
+    renderTray();
+    renderBoard();
+  }
+
+  function pieceEl(i) {
+    const p = level.st.pieces[i];
+    if (p.at) return $('lv-board').querySelector('.piece[data-i="' + i + '"]');
+    const slot = $('lv-tray').querySelector('.slot[data-i="' + i + '"]');
+    return slot ? slot.querySelector('svg') : null;
+  }
+
+  function select(i) {
+    selected = i;
+    $('lv-flip').classList.toggle('inactive', i === null);
+    for (const el of document.querySelectorAll('#screen-level .selected')) el.classList.remove('selected');
+    if (i === null) return;
+    const p = level.st.pieces[i];
+    const el = p.at ? $('lv-board').querySelector('.piece[data-i="' + i + '"]') : $('lv-tray').querySelector('.slot[data-i="' + i + '"]');
+    if (el) el.classList.add('selected');
+  }
+
+  // ---------- gestures ----------
+
+  let drag = null; // { g, piece, proxy, target, origin }
+
+  function hitTest(e) {
+    if (!level || screen !== 'level' || inputBlocked || level.at.done || menuOpen) return null;
+    const { st, cell, lvl } = level;
+    const slot = e.target && e.target.closest ? e.target.closest('.slot') : null;
+    if (slot) {
+      const p = st.pieces[Number(slot.dataset.i)];
+      if (!p || p.at) return null;
+      const svg = slot.querySelector('svg');
+      const s = core.shape(p.type, p.ori);
+      let gx = s.w / 2;
+      let gy = s.h / 2;
+      if (svg) {
+        const r = svg.getBoundingClientRect();
+        const tc = level.tray.cell;
+        const fx = (e.clientX - r.left) / tc;
+        const fy = (e.clientY - r.top) / tc;
+        if (s.cells.some((c) => fx >= c[0] && fx < c[0] + 1 && fy >= c[1] && fy < c[1] + 1)) {
+          gx = fx;
+          gy = fy;
+        }
+      }
+      return { piece: p, source: 'tray', gx, gy, pivot: 0, pinned: false };
+    }
+    const br = $('lv-board').getBoundingClientRect();
+    const fx = (e.clientX - br.left) / cell;
+    const fy = (e.clientY - br.top) / cell;
+    const cx = Math.floor(fx);
+    const cy = Math.floor(fy);
+    if (cx < 0 || cy < 0 || cx >= lvl.W || cy >= lvl.H) return null;
+    const o = st.owner[cy * lvl.W + cx];
+    if (o < 0) return null;
+    const p = st.pieces[o];
+    const cells = core.cellsAt(p, p.ori, p.at.x, p.at.y);
+    const pivot = cells.findIndex((c) => c[0] === cx && c[1] === cy);
+    return { piece: p, source: 'board', gx: fx - p.at.x, gy: fy - p.at.y, pivot, pinned: p.pinned };
+  }
+
+  function onPress(g) {
+    const p = g.hit.piece;
+    select(p.i);
+    if (p.pinned) {
+      view.shake(pieceEl(p.i));
+      log('pinx', p.letter);
+    }
+  }
+
+  function onDragStart(g) {
+    const p = g.hit.piece;
+    const cell = level.cell;
+    log('pick', p.letter);
+    const proxy = view.h('div', 'proxy dragging', $('drag-layer'));
+    proxy.appendChild(view.pieceSvg(p.type, p.ori, cell));
+    const original = pieceEl(p.i);
+    if (original) original.style.visibility = 'hidden';
+    drag = {
+      g,
+      piece: p,
+      proxy,
+      target: null,
+      lift: g.type === 'touch' || g.type === 'pen' ? 1.5 * cell : 0,
+      origin: p.at ? { x: p.at.x, y: p.at.y } : null,
+    };
+    onDragMove(g);
+  }
+
+  function proxyPos(g) {
+    const cell = level.cell;
+    return { left: g.x - g.hit.gx * cell, top: g.y - g.hit.gy * cell - drag.lift };
+  }
+
+  function onDragMove(g) {
+    if (!drag) return;
+    const pos = proxyPos(g);
+    drag.proxy.style.transform = 'translate(' + pos.left + 'px,' + pos.top + 'px)';
+    const br = $('lv-board').getBoundingClientRect();
+    const cell = level.cell;
+    const p = drag.piece;
+    drag.target = core.nearestPlacement(level.st, p, p.ori, (pos.left - br.left) / cell, (pos.top - br.top) / cell);
+    const ghost = $('lv-ghost');
+    if (!ghost) return;
+    ghost.textContent = '';
+    if (drag.target) {
+      ghost.style.left = drag.target.x * cell + 'px';
+      ghost.style.top = drag.target.y * cell + 'px';
+      ghost.appendChild(view.pieceSvg(p.type, p.ori, cell, { ghost: true }));
+    }
+  }
+
+  function clearDrag() {
+    if (!drag) return;
+    drag.proxy.remove();
+    const ghost = $('lv-ghost');
+    if (ghost) ghost.textContent = '';
+    drag = null;
+  }
+
+  function overBoard(x, y) {
+    const r = $('lv-board').getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+
+  function onDrop(g) {
+    if (!drag) return;
+    const p = drag.piece;
+    const cell = level.cell;
+    const dist = Math.round((Math.hypot(g.x - g.x0, g.y - g.y0) / cell) * 10);
+    const from = drag.proxy.getBoundingClientRect();
+    const target = drag.target;
+    clearDrag();
+    let outcome;
+    if (target) {
+      core.place(level.st, p, p.ori, target.x, target.y);
+      outcome = 'place';
+    } else if (overBoard(g.x, g.y)) {
+      outcome = 'fail';
+    } else {
+      if (p.at) core.unplace(level.st, p);
+      outcome = 'tray';
+    }
+    log(outcome, p.letter, dist);
+    saveLevel();
+    render();
+    select(p.i);
+    if (outcome === 'place' || outcome === 'fail') coachAfterDrop();
+    afterLayoutChange();
+    if (outcome === 'place') checkWin();
+    const to = pieceEl(p.i);
+    if (to) view.fly($('drag-layer'), view.pieceSvg(p.type, p.ori, cell), from, to, { duration: outcome === 'place' ? 120 : 220 });
+  }
+
+  function onCancel(g) {
+    if (!g) return;
+    if (drag) {
+      const p = drag.piece;
+      const from = drag.proxy.getBoundingClientRect();
+      clearDrag();
+      log('cancel', p.letter);
+      render();
+      const to = pieceEl(p.i);
+      if (to) view.fly($('drag-layer'), view.pieceSvg(p.type, p.ori, level.cell), from, to);
+    } else if (level) {
+      render();
+    }
+    afterLayoutChange();
+  }
+
+  function onTap(g) {
+    const p = g.hit.piece;
+    if (p.pinned) return;
+    if (!p.at) {
+      p.ori = core.rotateOri(p.ori);
+      log('rot', p.letter, 0);
+      saveLevel();
+      renderTray();
+      select(p.i);
+      coachAfterRotate();
+      const el = pieceEl(p.i);
+      if (el) view.spin(el, 'rot', el.getBoundingClientRect().width / 2, el.getBoundingClientRect().height / 2);
+      return;
+    }
+    const res = core.rotateOnBoard(level.st, p, g.hit.pivot);
+    if (!res) {
+      log('rotx', p.letter, 1);
+      view.shake(pieceEl(p.i));
+      return;
+    }
+    core.place(level.st, p, res.ori, res.x, res.y);
+    log('rot', p.letter, 1);
+    saveLevel();
+    render();
+    select(p.i);
+    coachAfterRotate();
+    const el = pieceEl(p.i);
+    const pc = core.shape(p.type, p.ori).cells[g.hit.pivot];
+    if (el) view.spin(el, 'rot', (pc[0] + 0.5) * level.cell, (pc[1] + 0.5) * level.cell);
+  }
+
+  function onFlip() {
+    if (!level || inputBlocked || level.at.done || (input && input.active()) || !level.def.rules.flip) return;
+    if (selected === null) return;
+    const p = level.st.pieces[selected];
+    if (p.pinned) {
+      view.shake(pieceEl(p.i));
+      log('pinx', p.letter);
+      return;
+    }
+    if (!p.at) {
+      p.ori = core.flipOri(p.ori);
+      log('flip', p.letter, 0);
+      saveLevel();
+      renderTray();
+      select(p.i);
+      coachAfterFlip();
+      const el = pieceEl(p.i);
+      if (el) view.spin(el, 'flip', el.getBoundingClientRect().width / 2, 0);
+      return;
+    }
+    const res = core.flipOnBoard(level.st, p);
+    if (!res) {
+      log('flipx', p.letter, 1);
+      view.shake(pieceEl(p.i));
+      return;
+    }
+    core.place(level.st, p, res.ori, res.x, res.y);
+    log('flip', p.letter, 1);
+    saveLevel();
+    render();
+    select(p.i);
+    coachAfterFlip();
+    const el = pieceEl(p.i);
+    if (el) view.spin(el, 'flip', (core.shape(p.type, p.ori).w * level.cell) / 2, 0);
+  }
+
+  function afterLayoutChange() {
+    if (pendingLayout) {
+      pendingLayout = false;
+      layoutLevel();
+    }
+  }
+
+  // ---------- hint and reset ----------
+
+  function onHint() {
+    if (!level || inputBlocked || level.at.done || !level.ls.hintAvailable || (input && input.active())) return;
+    view.finishAll();
+    const { st, def, ls } = level;
+    const h = core.hint(st, { avoidReflected: def.coach === 'flip' && !ls.firstHintUsed });
+    if (!h) return;
+    const hinted = st.pieces[h.place.i];
+    log('hint', hinted.letter, h.remove.length);
+    const removedFrom = h.remove.map((i) => {
+      const el = pieceEl(i);
+      return { i, rect: el ? el.getBoundingClientRect() : null };
+    });
+    const hintFrom = pieceEl(hinted.i);
+    const hintRect = hintFrom ? hintFrom.getBoundingClientRect() : null;
+    const oldOri = hinted.ori;
+    for (const i of h.remove) core.unplace(st, st.pieces[i]);
+    core.place(st, hinted, h.place.ori, h.place.x, h.place.y);
+    hinted.pinned = true;
+    ls.firstHintUsed = true;
+    selected = null;
+    saveLevel();
+    saveAttempt(level.at);
+    render();
+    const layer = $('drag-layer');
+    const cell = level.cell;
+    const reduced = view.reducedMotion();
+    checkWin();
+    for (const r of removedFrom) {
+      const p = st.pieces[r.i];
+      const to = pieceEl(r.i);
+      if (!r.rect || !to) continue;
+      const node = view.pieceSvg(p.type, p.ori, cell, { color: '#d8434b', stroke: '#8e1f25' });
+      // removed pieces are shown in red where they stood: still with reduced motion, flying to the tray otherwise
+      if (reduced) view.flashAt(layer, node, r.rect, 600);
+      else view.fly(layer, node, r.rect, to, { delay: 600, duration: 240 });
+    }
+    const to = pieceEl(hinted.i);
+    const turned = oldOri.r !== h.place.ori.r || oldOri.f !== h.place.ori.f;
+    if (to && hintRect) view.fly(layer, view.pieceSvg(hinted.type, hinted.ori, cell), hintRect, to, { delay: removedFrom.length ? 700 : 0, duration: 320, turn: turned ? -90 : 0 });
+  }
+
+  function onReset() {
+    if (!level || inputBlocked || level.at.done || (input && input.active())) return;
+    const btn = $('lv-reset');
+    if (now() > resetArmed) {
+      resetArmed = now() + 3000;
+      btn.textContent = 'Точно?';
+      btn.classList.add('armed');
+      clearTimeout(resetTimer);
+      resetTimer = setTimeout(disarmReset, 3000);
+      return;
+    }
+    disarmReset();
+    const removed = core.resetBoard(level.st);
+    log('reset', '', removed.length);
+    selected = null;
+    saveLevel();
+    render();
+  }
+
+  function disarmReset() {
+    resetArmed = 0;
+    clearTimeout(resetTimer);
+    const btn = $('lv-reset');
+    btn.textContent = 'Сброс';
+    btn.classList.remove('armed');
+  }
+
+  // ---------- win ----------
+
+  function checkWin() {
+    if (!level || !core.isSolved(level.st) || level.at.done) return;
+    const { def, at, ls } = level;
+    inputBlocked = true;
+    selected = null;
+    log('win');
+    at.done = true;
+    stats.setFlag(at.clock, now(), 'paused', true);
+    const prog = meta.progress[def.id] || { solved: false, bestHints: null };
+    const hints = at.acc.hints.length;
+    prog.solved = true;
+    prog.bestHints = prog.bestHints === null || prog.bestHints === undefined ? hints : Math.min(prog.bestHints, hints);
+    meta.progress[def.id] = prog;
+    if (def.chapter === 3 && meta.bonus.solved.indexOf(def.id) === -1) meta.bonus.solved.push(def.id);
+    ls.pendingWin = true;
+    ls.done = true;
+    ls.winHints = hints;
+    stopPoll();
+    updateHintButton(false);
+    view.unpulse($('lv-flip'));
+    coachText('');
+    saveAll();
+    enqueue('attempt:' + at.id);
+    enqueue('session');
+    flush(false);
+    const same = level;
+    winFill(true).then(() => {
+      if (level === same && level.ls.pendingWin && screen === 'level') showWinCard(true);
+    });
+  }
+
+  function winFill(animated) {
+    const board = $('lv-board');
+    const cell = level.cell;
+    const svg = view.svgEl('svg', { width: level.lvl.W * cell, height: level.lvl.H * cell, class: 'win-fill', 'aria-hidden': 'true' });
+    view.svgEl('path', { d: view.targetPath(level.lvl, cell), fill: view.colorOf(level.def.goal), stroke: view.strokeOf(level.def.goal), 'stroke-width': 2 }, svg);
+    board.appendChild(svg);
+    if (!animated) return Promise.resolve();
+    return view.animate(svg, [{ opacity: 0 }, { opacity: 1 }], { duration: view.reducedMotion() ? 1 : 900, fill: 'both' });
+  }
+
+  function showWinCard(animated) {
+    const { def, ls } = level;
+    inputBlocked = true;
+    const fig = $('win-figure');
+    fig.textContent = '';
+    const bigCell = Math.max(14, Math.min(26, Math.floor(160 / Math.max(core.shape(def.goal, { r: 0, f: 0 }).w, core.shape(def.goal, { r: 0, f: 0 }).h))));
+    const big = view.pieceSvg(def.goal, { r: 0, f: 0 }, bigCell);
+    fig.appendChild(big);
+    const stripEl = $('win-strip');
+    const types = def.chapter === 1 ? view.TETROMINOES : view.PENTOMINOES;
+    const have = def.chapter === 1 ? collectedTetrominoes() : collectedPentominoes();
+    strip(stripEl, types, have, def.chapter === 1 ? 'Собрано' : 'Пентамино ' + have.length + '/12');
+    const hints = ls.winHints || 0;
+    $('win-hints').textContent = hints ? 'с подсказками: ' + hints : '';
+    $('win').hidden = false;
+    $('win-next').focus({ preventScroll: true });
+    if (animated) {
+      const cellEl = stripEl.querySelector('.strip-cell[data-type="' + def.goal + '"] svg');
+      if (cellEl) view.fly($('drag-layer'), view.pieceSvg(def.goal, { r: 0, f: 0 }, bigCell), big.getBoundingClientRect(), cellEl, { delay: 350, duration: 650 });
+    }
+  }
+
+  function onWinNext() {
+    if (!level || $('win').hidden) return;
+    const id = level.def.id;
+    level.ls.pendingWin = false;
+    saveLevel();
+    $('win').hidden = true;
+    inputBlocked = false;
+    const next = nextLevelId(id);
+    leaveLevel(false);
+    if (id === 'ch2-5') return openBonus();
+    if (!next) return openResults('levels');
+    openLevel(next);
+  }
+
+  // ---------- chapter 2 intro ----------
+
+  function showCh2Intro(targetId) {
+    if (level) leaveLevel(false);
+    show('ch2');
+    const stripEl = $('ch2-strip');
+    const row = strip(stripEl, view.TETROMINOES, collectedTetrominoes(), 'Собрано');
+    const tray = $('ch2-tray');
+    tray.textContent = '';
+    const l6 = core.parseLevel(BY_ID['ch2-1']);
+    const play = $('ch2-play');
+    play.dataset.target = targetId;
+    const items = [];
+    for (const p of l6.pieces) {
+      const slot = view.h('div', 'intro-slot', tray);
+      const svg = view.pieceSvg(p.type, { r: 0, f: 0 }, 9);
+      slot.appendChild(svg);
+      items.push({ p, svg });
+    }
+    let k = 0;
+    for (const it of items) {
+      if (it.p.type === 'I2') {
+        if (!view.reducedMotion()) view.animate(it.svg, [{ opacity: 0 }, { opacity: 1 }], { duration: 400, delay: 900, fill: 'both' });
+        continue;
+      }
+      const src = row.querySelector('.strip-cell[data-type="' + it.p.type + '"] svg');
+      if (src) view.fly($('drag-layer'), view.pieceSvg(it.p.type, { r: 0, f: 0 }, 9), src.getBoundingClientRect(), it.svg, { delay: 200 + k * 150, duration: 500 });
+      k++;
+    }
+  }
+
+  function onCh2Play() {
+    meta.ch2IntroSeen = true;
+    saveMeta();
+    enqueue('session');
+    openLevel($('ch2-play').dataset.target || 'ch2-1');
+  }
+
+  // ---------- bonus, results, thanks ----------
+
+  function openBonus() {
+    if (level) leaveLevel(false);
+    show('bonus');
+  }
+
+  function onBonusPlay() {
+    const next = LEVELS.find((l) => l.chapter === 3 && !solved(l.id)) || LEVELS.find((l) => l.chapter === 3);
+    openLevel(next.id);
+  }
+
+  function q2Art() {
+    const art = $('q2-art');
+    art.textContent = '';
+    const l6 = core.parseLevel(BY_ID['ch2-1']);
+    for (const p of l6.pieces) {
+      const slot = view.h('div', 'intro-slot', art);
+      slot.appendChild(view.pieceSvg(p.type, p.trayOri, 9));
+    }
+  }
+
+  function openResults(from) {
+    resultsReturn = from;
+    if (from === 'level') pauseLevel(true);
+    else if (level) leaveLevel(false);
+    show('results');
+    $('results-questions').hidden = !!meta.live;
+    $('q2-block').hidden = !meta.ch2IntroSeen;
+    if (meta.ch2IntroSeen) q2Art();
+    const f = meta.final;
+    $('q1').value = f.answers.q1 || '';
+    $('q2').value = f.answers.q2 || '';
+    $('q3').value = f.answers.q3 || '';
+    $('r-name').value = f.name || '';
+    $('r-code').value = meta.tester || '';
+    $('r-share-text').hidden = true;
+    $('r-copy').hidden = true;
+    $('r-build').textContent = 'Сборка ' + config.build;
+  }
+
+  function closeResults() {
+    if (resultsReturn === 'level' && level) {
+      show('level');
+      layoutLevel();
+      pauseLevel(false);
+      startPoll();
+    } else openLevels();
+  }
+
+  let finalTimer = null;
+
+  // draft answers are saved and queued for sending as they are typed: the in-app browser may close without warning
+  function readAnswers() {
+    meta.final.answers.q1 = $('q1').value;
+    meta.final.answers.q2 = $('q2-block').hidden ? '' : $('q2').value;
+    meta.final.answers.q3 = $('q3').value;
+    meta.final.name = $('r-name').value;
+    const code = $('r-code').value.trim().slice(0, 12);
+    if (code) meta.tester = code;
+    finalDirty = true;
+    saveMetaSoon();
+    clearTimeout(finalTimer);
+    finalTimer = setTimeout(() => {
+      enqueue('final');
+      flush(false);
+    }, 3000);
+  }
+
+  function sendFinal(wantMore) {
+    readAnswers();
+    clearTimeout(finalTimer);
+    meta.final.wantMore = wantMore;
+    meta.final.sent = true;
+    finalDirty = false;
+    saveMeta();
+    enqueue('final');
+    enqueue('session');
+    flush(false);
+    if (level) leaveLevel(false);
+    show('thanks');
+  }
+
+  function shareText() {
+    readAnswers();
+    return stats.shareText(recMeta(), allAttempts(), meta.final);
+  }
+
+  function selectAll(ta) {
+    ta.focus();
+    ta.select();
+    try {
+      ta.setSelectionRange(0, ta.value.length);
+    } catch (e) {
+      /* not supported */
+    }
+  }
+
+  function showShareField(text) {
+    const ta = $('r-share-text');
+    ta.hidden = false;
+    ta.value = text;
+    $('r-copy').hidden = false;
+    selectAll(ta);
+  }
+
+  function onShare() {
+    const text = shareText();
+    if (navigator.share) {
+      navigator.share({ text }).catch((err) => {
+        if (err && err.name === 'AbortError') return;
+        showShareField(text);
+      });
+      return;
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          () => toast('Скопировано'),
+          () => showShareField(text)
+        );
+        return;
+      }
+    } catch (e) {
+      /* fall through */
+    }
+    showShareField(text);
+  }
+
+  function onCopy() {
+    const ta = $('r-share-text');
+    selectAll(ta);
+    const legacy = () => {
+      let ok = false;
+      try {
+        ok = document.execCommand('copy');
+      } catch (e) {
+        ok = false;
+      }
+      toast(ok ? 'Скопировано' : 'Выдели текст и скопируй вручную');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(() => toast('Скопировано'), legacy);
+      return;
+    }
+    legacy();
+  }
+
+  function toast(text) {
+    const t = view.h('div', 'toast', document.body);
+    t.textContent = text;
+    setTimeout(() => t.remove(), 1600);
+  }
+
+  // ---------- level start ----------
+
+  function growGoal() {
+    if (view.reducedMotion()) return;
+    const icon = $('lv-goal-icon').querySelector('svg');
+    const board = $('lv-board').querySelector('.board-svg');
+    if (!icon || !board) return;
+    const node = view.shapeIcon(level.def.goal, level.def.goalOri, level.cell * 2, '#23356b');
+    node.style.opacity = '0.35';
+    view.fly($('drag-layer'), node, icon.getBoundingClientRect(), board, { duration: 520 });
+  }
+
+  // ---------- menu ----------
+
+  function openMenu() {
+    if (!level || inputBlocked || (input && input.active())) return;
+    menuOpen = true;
+    pauseLevel(true);
+    $('menu-build').textContent = 'Сборка ' + config.build;
+    $('menu').hidden = false;
+  }
+
+  function closeMenu(resume) {
+    $('menu').hidden = true;
+    menuOpen = false;
+    if (resume) pauseLevel(false);
+  }
+
+  // ---------- visibility, resize, tabs ----------
+
+  let hiddenAt = 0;
+  const NEW_VISIT_AFTER = 30 * 60 * 1000;
+
+  function onHide() {
+    if (hiddenHandled) return;
+    hiddenHandled = true;
+    hiddenAt = now();
+    const v = meta.visits[meta.visits.length - 1];
+    if (v) v.last = hiddenAt;
+    if (level && !level.at.done) {
+      if (screen === 'level' && !menuOpen) log('hide');
+      stats.setFlag(level.at.clock, now(), 'hidden', true);
+    }
+    if (screen === 'results') {
+      readAnswers();
+      finalDirty = true;
+    }
+    saveAll();
+    if (level && !level.at.done) enqueue('attempt:' + level.at.id);
+    if (finalDirty) enqueue('final');
+    enqueue('session');
+    flush(true);
+  }
+
+  function onShow() {
+    hiddenHandled = false;
+    if (!ownTab()) return;
+    if (level && !level.at.done) {
+      const wasHidden = level.at.clock.hidden;
+      stats.setFlag(level.at.clock, now(), 'hidden', false);
+      if (wasHidden && screen === 'level' && !menuOpen) log('show');
+    }
+    // coming back to a tab that was not reloaded, after a long break, is a new visit
+    if (hiddenAt && now() - hiddenAt > NEW_VISIT_AFTER) {
+      meta.visits.push({ start: now(), last: now() });
+      if (meta.visits.length > 60) meta.visits.shift();
+      enqueue('session');
+    } else touchVisit();
+    hiddenAt = 0;
+    saveMeta();
+    flush(false);
+  }
+
+  function updateRotateOverlay() {
+    const coarse = globalThis.matchMedia && matchMedia('(pointer: coarse)').matches;
+    const ae = document.activeElement;
+    const typing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
+    const landscape = innerWidth > innerHeight;
+    $('rotate').hidden = !(coarse && Math.min(innerWidth, innerHeight) < 500 && landscape && !typing);
+    if (lastLandscape !== null && landscape !== lastLandscape && input && input.active()) input.cancel();
+    lastLandscape = landscape;
+  }
+
+  let layoutQueued = false;
+  function scheduleLayout() {
+    if (layoutQueued) return;
+    layoutQueued = true;
+    // a hidden page gets no animation frames; a timer keeps the layout and the overlay correct anyway
+    const nextFrame = document.hidden ? (fn) => setTimeout(fn, 16) : requestAnimationFrame;
+    nextFrame(() => {
+      layoutQueued = false;
+      if (innerHeight <= 0) return;
+      if (input && input.dragging()) {
+        updateRotateOverlay();
+        pendingLayout = true;
+        return;
+      }
+      layoutLevel();
+    });
+  }
+
+  // ---------- boot ----------
+
+  function wire() {
+    $('lv-back').innerHTML = view.ICONS.back;
+    $('lv-menu').innerHTML = view.ICONS.menu;
+    $('album-back').innerHTML = view.ICONS.back;
+    $('results-back').innerHTML = view.ICONS.back;
+    $('lv-flip').innerHTML = view.ICONS.flip;
+
+    $('start-play').addEventListener('click', () => {
+      meta.introSeen = true;
+      saveMeta();
+      openLevels();
+    });
+    $('levels-album').addEventListener('click', () => openAlbum('levels'));
+    $('levels-list').addEventListener('click', (e) => {
+      const tile = e.target.closest('.tile');
+      if (tile && !tile.disabled) openLevel(tile.dataset.id);
+    });
+    $('album-back').addEventListener('click', closeAlbum);
+    $('lv-back').addEventListener('click', () => {
+      if (!level || inputBlocked || (input && input.active())) return;
+      leaveLevel(true);
+      openLevels();
+    });
+    $('lv-menu').addEventListener('click', openMenu);
+    $('menu-close').addEventListener('click', () => closeMenu(true));
+    $('menu-album').addEventListener('click', () => {
+      closeMenu(false);
+      openAlbum('level');
+    });
+    $('menu-results').addEventListener('click', () => {
+      closeMenu(false);
+      openResults('level');
+    });
+    $('lv-hint').addEventListener('click', onHint);
+    $('lv-flip').addEventListener('click', onFlip);
+    $('lv-reset').addEventListener('click', onReset);
+    $('win-next').addEventListener('click', onWinNext);
+    $('win-album').addEventListener('click', () => openAlbum('win'));
+    $('ch2-play').addEventListener('click', onCh2Play);
+    $('bonus-play').addEventListener('click', onBonusPlay);
+    $('bonus-finish').addEventListener('click', () => openResults('levels'));
+    $('results-back').addEventListener('click', () => {
+      readAnswers();
+      saveMeta();
+      closeResults();
+    });
+    for (const id of ['q1', 'q2', 'q3', 'r-name', 'r-code']) $(id).addEventListener('input', readAnswers);
+    $('r-more').addEventListener('click', () => sendFinal(true));
+    $('r-enough').addEventListener('click', () => sendFinal(false));
+    $('r-share').addEventListener('click', onShare);
+    $('r-copy').addEventListener('click', onCopy);
+    $('results-form').addEventListener('submit', (e) => e.preventDefault());
+    $('thanks-levels').addEventListener('click', openLevels);
+    $('othertab-here').addEventListener('click', () => {
+      store.set(KEY.tab, tabId);
+      location.reload();
+    });
+
+    input = P.input.createInput($('screen-level'), {
+      onInput(e) {
+        if (e && e.pointerType && !meta.device) {
+          meta.device = e.pointerType === 'mouse' ? 'mouse' : 'touch';
+          saveMetaSoon();
+        }
+        if (level && !level.at.done && screen === 'level') stats.input(level.at.clock, now());
+      },
+      isBlocked: () => inputBlocked || frozen || menuOpen,
+      finishFlights: () => view.finishAll(),
+      hitTest,
+      onPress,
+      onDragStart,
+      onDragMove,
+      onDrop,
+      onTap,
+      onCancel,
+    });
+
+    document.addEventListener('contextmenu', (e) => {
+      if (!(e.target && e.target.closest && e.target.closest('input, textarea'))) e.preventDefault();
+    });
+    document.addEventListener('visibilitychange', () => (document.hidden ? onHide() : onShow()));
+    addEventListener('pagehide', onHide);
+    addEventListener('pageshow', () => {
+      if (!document.hidden) onShow();
+    });
+    addEventListener('resize', scheduleLayout);
+    addEventListener('orientationchange', scheduleLayout);
+    if (globalThis.visualViewport) visualViewport.addEventListener('resize', scheduleLayout);
+    if (globalThis.matchMedia) {
+      const mq = matchMedia('(orientation: landscape)');
+      if (mq.addEventListener) mq.addEventListener('change', scheduleLayout);
+      else if (mq.addListener) mq.addListener(scheduleLayout);
+    }
+    addEventListener('storage', (e) => {
+      if (e.key === KEY.tab) ownTab();
+    });
+  }
+
+  function boot() {
+    meta = loadMeta();
+    outbox = store.get(KEY.outbox) || {};
+    const params = new URLSearchParams(location.search);
+    if (params.get('reset') === '1') {
+      resetProgress();
+      params.delete('reset');
+      const q = params.toString();
+      try {
+        history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+      } catch (e) {
+        /* file:// or sandbox */
+      }
+    }
+    const t = params.get('t');
+    if (t) meta.tester = t.slice(0, 12);
+    if (!meta.tester) meta.tester = 'x' + rid(4);
+    if (params.get('live') === '1') meta.live = true;
+    meta.visits.push({ start: now(), last: now() });
+    if (meta.visits.length > 60) meta.visits.shift();
+    store.set(KEY.tab, tabId);
+    wire();
+    saveMeta();
+    enqueue('session');
+    const startArt = $('start-art');
+    ['I4', 'O4', 'L4', 'S4', 'T4'].forEach((type) => startArt.appendChild(view.shapeIcon(type, { r: 0, f: 0 }, 10, view.colorOf(type))));
+    if (!meta.introSeen) show('start');
+    else if (meta.screen === 'level' && meta.currentLevel && BY_ID[meta.currentLevel]) openLevel(meta.currentLevel, true);
+    else if (meta.screen === 'results') openResults('levels');
+    else openLevels();
+    updateRotateOverlay();
+    flush(false);
+  }
+
+  P.app = {
+    // for tests and debugging in the browser
+    state: () => ({ meta, level, screen, outbox, selected }),
+    openLevel,
+    reset: () => {
+      resetProgress();
+      saveMeta();
+    },
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>
